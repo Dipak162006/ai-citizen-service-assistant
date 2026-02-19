@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - AI Citizen Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #1a2e23, var(--bg-dark));
+        }
+        .register-card {
+            width: 100%;
+            max-width: 450px;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .form-control {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        .form-control:focus {
+            background-color: var(--bg-surface);
+            border-color: var(--accent-green);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.25rem rgba(0, 230, 118, 0.1);
+        }
+        .btn-register {
+            background: var(--accent-green);
+            color: #000;
+            font-weight: 600;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .btn-register:hover {
+            background: var(--accent-hover);
+            transform: scale(1.02);
+        }
+        .link-text {
+            color: var(--accent-green);
+            text-decoration: none;
+        }
+        .link-text:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="text-secondary text-decoration-none position-absolute top-0 start-0 m-4">
+        <i class="fas fa-arrow-left me-2"></i>Back to Home
+    </a>
+    <div class="register-card">
+        <div class="text-center mb-4">
+            <h1 class="h3 fw-bold text-white"><i class="fa-solid fa-user-plus me-2 text-success"></i>Create Account</h1>
+            <p class="text-secondary">Join to get personalized scheme suggestions</p>
+        </div>
+        
+        <div id="alert" class="alert d-none"></div>
+        
+        <form id="registerForm">
+            <div class="mb-3">
+                <label class="form-label text-secondary">Full Name</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-user"></i></span>
+                    <input type="text" id="full_name" class="form-control" required placeholder="John Doe">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label text-secondary">Email Address</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-envelope"></i></span>
+                    <input type="email" id="email" class="form-control" required placeholder="name@example.com">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label text-secondary">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-lock"></i></span>
+                    <input type="password" id="password" class="form-control" required placeholder="••••••••">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label text-secondary">Confirm Password</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-lock"></i></span>
+                    <input type="password" id="confirm_password" class="form-control" required placeholder="••••••••">
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-register w-100 py-2 mb-3">Create Account</button>
+            
+            <div class="text-center">
+                <small class="text-secondary">Already have an account? <a href="/login" class="link-text">Sign In</a></small>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const full_name = document.getElementById('full_name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirm_password = document.getElementById('confirm_password').value;
+            const alert = document.getElementById('alert');
+            const btn = document.querySelector('button[type="submit"]');
+
+            if (password !== confirm_password) {
+                alert.textContent = "Passwords do not match!";
+                alert.className = 'alert alert-danger';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+            try {
+                const res = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name, email, password, confirm_password })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert.textContent = data.message;
+                    alert.className = 'alert alert-success';
+                    setTimeout(() => window.location.href = '/login', 2000);
+                } else {
+                    alert.textContent = data.error;
+                    alert.className = 'alert alert-danger';
+                    btn.disabled = false;
+                    btn.innerText = 'Create Account';
+                }
+            } catch (err) {
+                alert.textContent = "Connection error";
+                alert.className = 'alert alert-danger';
+                btn.disabled = false;
+                btn.innerText = 'Create Account';
+            }
+        });
+    </script>
+</body>
+</html>

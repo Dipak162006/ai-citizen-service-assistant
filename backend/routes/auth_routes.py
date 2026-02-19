@@ -1,0 +1,59 @@
+from flask import Blueprint, request, jsonify, session, redirect, url_for
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, User
+
+auth_bp = Blueprint('auth_bp', __name__)
+
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    data = request.json
+    full_name = data.get('full_name')
+    email = data.get('email')
+    password = data.get('password')
+    confirm_password = data.get('confirm_password')
+
+    if not all([full_name, email, password, confirm_password]):
+        return jsonify({"error": "All fields are required"}), 400
+
+    if password != confirm_password:
+        return jsonify({"error": "Passwords do not match"}), 400
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already exists"}), 400
+
+    hashed_password = generate_password_hash(password)
+    new_user = User(full_name=full_name, email=email, password_hash=hashed_password)
+    
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({"message": "Registration successful! Please login."}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+
+    user = User.query.filter_by(email=email).first()
+
+    if user and check_password_hash(user.password_hash, password):
+        session['user_id'] = user.id
+        session['user_name'] = user.full_name
+        return jsonify({"message": "Login successful", "redirect": "/dashboard"}), 200
+    
+    return jsonify({"error": "Invalid email or password"}), 401
+
+@auth_bp.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
+
+@auth_bp.route('/check_auth')
+def check_auth():
+    if 'user_id' in session:
+        return jsonify({"authenticated": True, "user": session['user_name']}), 200
+    return jsonify({"authenticated": False}), 401
