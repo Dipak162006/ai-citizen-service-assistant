@@ -472,7 +472,6 @@ body {
     display: none;
 }
 
-/* Message Bubbles */
 .message-bubble {
     max-width: 75%;
     padding: 14px 20px;
@@ -496,6 +495,37 @@ body {
     color: #e0e0e0;
     border-bottom-left-radius: 4px; /* Sharp corner */
     border: 1px solid rgba(255, 255, 255, 0.05);
+    padding-right: 40px; /* Room for speak button */
+}
+
+/* Speak Button (TTS) */
+.speak-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.speak-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.speak-btn.speaking {
+    color: var(--accent-green);
+    background: rgba(0, 230, 118, 0.15);
+    border-color: rgba(0, 230, 118, 0.3);
 }
 
 /* Markdown Styles inside AI Bubbles */
@@ -541,7 +571,7 @@ body {
     width: 100%;
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
-    padding: 14px 50px 14px 20px;
+    padding: 14px 90px 14px 20px; /* Increased right padding for two buttons */
     border-radius: 12px;
     color: white;
     font-size: 1rem;
@@ -579,6 +609,42 @@ body {
     background-color: #333;
     color: #666;
     cursor: not-allowed;
+}
+
+.mic-btn {
+    position: absolute;
+    right: 55px; /* Position to the left of send button */
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+}
+
+.mic-btn:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.mic-btn.listening {
+    color: #ff4757; /* Red icon when listening */
+    background-color: rgba(255, 71, 87, 0.15);
+    animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(255, 71, 87, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
 }
 
 /* Animations */

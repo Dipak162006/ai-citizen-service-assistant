@@ -2,9 +2,8 @@ from flask import Blueprint, request, jsonify, session
 from models import db, UserSession, ChatMessage, UserProfile
 from services.ai_service import extract_profile, generate_response, translate_text
 from services.scheme_service import find_eligible_schemes
-import datetime
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
+import os
+import re
 
 chat_bp = Blueprint('chat', __name__)
 
