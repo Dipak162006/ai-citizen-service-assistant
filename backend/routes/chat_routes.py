@@ -111,11 +111,14 @@ def chat():
     # ALWAYS generate in English for consistency. Frontend handles translation.
     final_language = 'English'
     
-    # Extract Intent Category (if any)
+    # Extract Intent Category & Query Type
     intent_category = extracted_profile.get('intent_category')
+    query_type = extracted_profile.get('query_type', 'general')
 
-    # Find Eligible Schemes (Hybrid Mode: Profile + Intent)
-    eligible_schemes = find_eligible_schemes(current_profile, intent_category=intent_category)
+    # Find Eligible Schemes (Only for Scheme/Eligibility Queries)
+    eligible_schemes = []
+    if query_type in ['scheme_inquiry', 'eligibility_check']:
+        eligible_schemes = find_eligible_schemes(current_profile, intent_category=intent_category)
 
     # Generate Response
     response_text = generate_response(
@@ -123,7 +126,8 @@ def chat():
         eligible_schemes, 
         current_profile, 
         missing_fields=missing_fields,
-        language=final_language
+        language=final_language,
+        intent=query_type
     )
 
     # Save Assistant Message

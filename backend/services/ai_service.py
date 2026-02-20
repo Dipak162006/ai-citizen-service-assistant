@@ -54,11 +54,13 @@ def extract_profile(chat_history):
     - state: (string, normalized to valid Indian state names)
     - detected_language: (string, "English", "Hindi", "Gujarati")
     - intent_category: (string, One of: "Agriculture", "Housing", "Health", "Education", "Women & Child", "Senior Citizens", "Employment", or null if general)
-    
+    - query_type: (string, One of: "general", "scheme_inquiry", "eligibility_check", "casual")
+
     Rules:
-    - If user says "Show me farmer schemes", intent_category = "Agriculture".
-    - If user says "I am a student", intent_category = null (unless they ask for student schemes).
-    - If user says "Health insurance", intent_category = "Health".
+    - If user asks a general fact like "What is GST?", query_type="general", intent_category=null.
+    - If user says "Hello" or "Thanks", query_type="casual".
+    - If user asks for schemes, query_type="scheme_inquiry".
+    - If user asks "Am I eligible?", query_type="eligibility_check".
     - Do not guess values. Only extract what is clearly stated.
     """
 
@@ -77,36 +79,55 @@ def extract_profile(chat_history):
     
     return {}
 
-def generate_response(user_query, schemes, profile, missing_fields=None, language="English"):
+def generate_response(user_query, schemes, profile, missing_fields=None, language="English", intent="general"):
     """
     Generates a natural language response using Groq.
     """
-    schemes_text = "No specific schemes found yet."
-    if schemes:
-        schemes_text = "Found Schemes:\n"
-        for s in schemes:
-            status = s.get('eligibility_status', 'Eligible')
-            schemes_text += f"• **{s['name']}** ({status}): {s.get('description', '')[:100]}...\n"
+    # 1. Handle General / Casual Intents (Skip Scheme Logic)
+    if intent in ['general', 'casual']:
+        system_prompt = f"""
+        You are a helpful and knowledgeable AI Assistant for Indian Citizens.
+        
+        User Query Intent: {intent}
+        Language: {language}
 
-    system_prompt = f"""
-    You are a friendly and helpful Government Scheme Assistant.
+        Instructions:
+        1. Answer the user's question clearly, accurately, and concisely.
+        2. If the user greets you, greet them back warmly.
+        3. Do NOT mention specific government schemes unless explicitly asked.
+        4. Do NOT ask for personal details (age, income, etc.) unless absolutely necessary for the answer.
+        5. Maintain a professional yet friendly tone.
+        6. Respond ONLY in {language}.
+        """
     
-    Current User Profile: {json.dumps(profile)}
-    Missing Details: {missing_fields if missing_fields else "None"}
-    Language: {language}
-    
-    Available Schemes Data:
-    {schemes_text}
-    
-    Instructions:
-    1. **Acknowledge**: Confirm understood details (e.g., "I see you are interested in Education schemes.").
-    2. **Schemes**: List the found schemes.
-       - If status is 'Eligible', recommend it strongly.
-       - If status is 'Check Details' or 'Possibly Eligible', explain that they might need to check specific criteria.
-    3. **Missing Info**: If I miss critical info (Occupation, Income, State, Age) *for the eligible schemes*, politely ask.
-    4. **Tone**: Professional, encouraging, and clear.
-    5. **Output**: Respond ONLY in {language}.
-    """
+    # 2. Handle Scheme / Eligibility Intents (Use Scheme Logic)
+    else:
+        schemes_text = "No specific schemes found yet."
+        if schemes:
+            schemes_text = "Found Schemes:\n"
+            for s in schemes:
+                status = s.get('eligibility_status', 'Eligible')
+                schemes_text += f"• **{s['name']}** ({status}): {s.get('description', '')[:100]}...\n"
+
+        system_prompt = f"""
+        You are a friendly and helpful Government Scheme Assistant.
+        
+        Current User Profile: {json.dumps(profile)}
+        Missing Details: {missing_fields if missing_fields else "None"}
+        Language: {language}
+        
+        Available Schemes Data:
+        {schemes_text}
+        
+        Instructions:
+        1. **Acknowledge**: Confirm understood details (e.g., "I see you are interested in Education schemes.").
+        2. **Schemes**: List the found schemes.
+           - If status is 'Eligible', recommend it strongly.
+           - If status is 'Check Details' or 'Possibly Eligible', explain that they might need to check specific criteria.
+        3. **Missing Info**: If I miss critical info (Occupation, Income, State, Age) *for the eligible schemes*, politely ask.
+        4. **Tone**: Professional, encouraging, and clear.
+        5. **Output**: Respond ONLY in {language}.
+        """
 
     messages = [
         {"role": "system", "content": system_prompt},

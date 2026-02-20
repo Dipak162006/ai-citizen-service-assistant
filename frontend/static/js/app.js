@@ -178,8 +178,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Language Switching ---
-    // Store current language (default English)
-    let currentLanguage = 'English';
+    // Language Configuration
+    const LANGUAGES = [
+        { code: 'English', native: 'English' },
+        { code: 'Hindi', native: 'हिंदी' },
+        { code: 'Gujarati', native: 'ગુજરાતી' },
+        { code: 'Marathi', native: 'मराठी' },
+        { code: 'Bengali', native: 'বাংলা' },
+        { code: 'Tamil', native: 'தமிழ்' },
+        { code: 'Telugu', native: 'తెలుగు' },
+        { code: 'Kannada', native: 'ಕನ್ನಡ' },
+        { code: 'Malayalam', native: 'മലയാളം' },
+        { code: 'Punjabi', native: 'ਪੰਜਾਬੀ' }
+    ];
+
+    // Check localStorage for saved language or default to English
+    let currentLanguage = localStorage.getItem('user_language') || 'English';
+    let isLanguageSwitching = false;
+
+    // Render Dropdown
+    const renderLanguageDropdown = () => {
+        const list = document.getElementById('language-list');
+        if (!list) return;
+        
+        list.innerHTML = LANGUAGES.map(lang => `
+            <li>
+                <button class="dropdown-item d-flex justify-content-between align-items-center" 
+                        type="button" 
+                        id="lang-btn-${lang.code}" 
+                        onclick="changeLanguage('${lang.code}')">
+                    <span>${lang.code} <small class="text-secondary ms-1">(${lang.native})</small></span>
+                    <i class="fas fa-check text-success ms-2 ${currentLanguage === lang.code ? '' : 'd-none'}" id="check-${lang.code}"></i>
+                </button>
+            </li>
+        `).join('');
+    };
 
     window.toggleLangMenu = () => {
         const menu = document.getElementById('lang-menu');
@@ -205,51 +238,89 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    window.changeLanguage = async (lang) => {
-        if (lang === currentLanguage) return;
-        currentLanguage = lang;
-        
-        // Optimistic Session Update (Non-blocking)
-        fetch('/change-language', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ language: lang, session_id: sessionId })
-        }).catch(err => console.error("Session Update Failed", err));
-
-        // Update UI Label
-        const label = document.getElementById('current-lang');
-        if (label) {
-             const spinner = '<i class="fas fa-spinner fa-spin ms-1"></i>';
-             label.innerHTML = `${lang} ${spinner}`;
-        }
-
-        // Parallel Translation of existing bubbles
-        const bubbles = document.querySelectorAll('.message-bubble');
-        const tasks = Array.from(bubbles).map(async (bubble) => {
-            const originalText = bubble.getAttribute('data-original-text');
-            const role = bubble.getAttribute('data-role');
-            
-            if (originalText) {
-                const translated = await TranslationManager.translate(originalText, lang);
-                if (role === 'assistant') {
-                    bubble.innerHTML = marked.parse(translated);
+    // Helper: Update visual indicators
+    const updateLanguageUI = (lang) => {
+        LANGUAGES.forEach(l => {
+            const btn = document.getElementById(`lang-btn-${l.code}`);
+            const check = document.getElementById(`check-${l.code}`);
+            if (btn && check) {
+                if (l.code === lang) {
+                    btn.classList.add('active');
+                    check.classList.remove('d-none');
                 } else {
-                    bubble.textContent = translated;
+                    btn.classList.remove('active');
+                    check.classList.add('d-none');
                 }
-                
-                // Re-apply link attributes
-                const links = bubble.querySelectorAll('a');
-                links.forEach(link => {
-                    link.setAttribute('target', '_blank');
-                    link.setAttribute('rel', 'noopener noreferrer');
-                });
             }
         });
+    };
 
-        await Promise.all(tasks);
+    window.changeLanguage = async (lang) => {
+        if (isLanguageSwitching) {
+            console.warn("Language switch already in progress. Ignoring.");
+            return;
+        }
+        if (lang === currentLanguage) return;
+
+        console.log(`[Language Switch] Starting switch to: ${lang}`);
+        isLanguageSwitching = true;
         
-        if (label) label.textContent = lang;
-        scrollToBottom();
+        
+        try {
+            currentLanguage = lang;
+            localStorage.setItem('user_language', lang); // Persist selection
+            
+            // Optimistic Session Update (Non-blocking)
+            fetch('/change-language', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ language: lang, session_id: sessionId })
+            }).catch(err => console.error("Session Update Failed", err));
+
+            // Update UI Label
+            const label = document.getElementById('current-lang');
+            if (label) {
+                 const spinner = '<i class="fas fa-spinner fa-spin ms-1"></i>';
+                 label.innerHTML = `${lang} ${spinner}`;
+            }
+
+            // Parallel Translation of existing bubbles
+            const bubbles = document.querySelectorAll('.message-bubble');
+            const tasks = Array.from(bubbles).map(async (bubble) => {
+                const originalText = bubble.getAttribute('data-original-text');
+                const role = bubble.getAttribute('data-role');
+                
+                if (originalText) {
+                    const translated = await TranslationManager.translate(originalText, lang);
+                    if (role === 'assistant') {
+                        bubble.innerHTML = marked.parse(translated);
+                    } else {
+                        bubble.textContent = translated;
+                    }
+                    
+                    // Re-apply link attributes
+                    const links = bubble.querySelectorAll('a');
+                    links.forEach(link => {
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    });
+                }
+            });
+
+            await Promise.all(tasks);
+            console.log(`[Language Switch] Completed switch to: ${lang}`);
+            
+            updateLanguageUI(lang); // Update indicators
+
+            if (label) label.textContent = lang;
+            scrollToBottom();
+            
+        } catch (error) {
+            console.error("[Language Switch] Error:", error);
+            alert("Error switching language. Please try again.");
+        } finally {
+            isLanguageSwitching = false;
+        }
     };
 
     // Fetch Scheme Details for Chat
@@ -369,6 +440,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Call on load
+    renderLanguageDropdown(); // Render languages first
+    updateLanguageUI(currentLanguage); // Set initial active state
+    if(currentLanguage !== 'English') {
+        // Update label immediately if saved language is not English
+        const label = document.getElementById('current-lang');
+        if (label) label.textContent = currentLanguage;
+    }
+
     fetchRecommendations();
     
     // 6. Close Modal
