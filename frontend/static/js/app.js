@@ -23,6 +23,46 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'fa-hand-holding-heart';
     };
 
+    // --- Translation Manager & Caching ---
+    const TranslationManager = {
+        cache: {}, 
+        
+        getHash(text) {
+            let hash = 0, i, chr;
+            if (text.length === 0) return hash;
+            for (i = 0; i < text.length; i++) {
+                chr = text.charCodeAt(i);
+                hash = ((hash << 5) - hash) + chr;
+                hash |= 0; 
+            }
+            return "h" + hash;
+        },
+
+        async translate(text, targetLang) {
+            if (!text || targetLang === 'English') return text;
+            const hash = this.getHash(text);
+            
+            if (!this.cache[hash]) this.cache[hash] = {};
+            if (this.cache[hash][targetLang]) return this.cache[hash][targetLang];
+
+            try {
+                const res = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, language: targetLang })
+                });
+                const data = await res.json();
+                if (data.translated_text) {
+                    this.cache[hash][targetLang] = data.translated_text;
+                    return data.translated_text;
+                }
+            } catch (e) {
+                console.error("Translation fail:", e);
+            }
+            return text; 
+        }
+    };
+
     // --- Infinite Scroll Logic ---
     const track = document.getElementById('track');
     const container = document.getElementById('suggestion-carousel');
@@ -169,55 +209,47 @@ document.addEventListener('DOMContentLoaded', () => {
         if (lang === currentLanguage) return;
         currentLanguage = lang;
         
-        // Show loading
-        const originalText = chatBox.innerHTML;
-        chatBox.innerHTML += `<div class="text-center text-muted small mt-2">Switching to ${lang}... <i class="fas fa-spinner fa-spin"></i></div>`;
-        scrollToBottom();
-        
-        try {
-            // 1. Tell Backend to Switch Language (No AI Generation)
-            await fetch('/change-language', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    language: lang,
-                    session_id: sessionId
-                })
-            });
+        // Optimistic Session Update (Non-blocking)
+        fetch('/change-language', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ language: lang, session_id: sessionId })
+        }).catch(err => console.error("Session Update Failed", err));
 
-            // 2. Translate History
-            const res = await fetch('/api/translate_history', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    session_id: sessionId, 
-                    language: lang 
-                })
-            });
+        // Update UI Label
+        const label = document.getElementById('current-lang');
+        if (label) {
+             const spinner = '<i class="fas fa-spinner fa-spin ms-1"></i>';
+             label.innerHTML = `${lang} ${spinner}`;
+        }
+
+        // Parallel Translation of existing bubbles
+        const bubbles = document.querySelectorAll('.message-bubble');
+        const tasks = Array.from(bubbles).map(async (bubble) => {
+            const originalText = bubble.getAttribute('data-original-text');
+            const role = bubble.getAttribute('data-role');
             
-            const data = await res.json();
-            
-            if (data.history) {
-                // Clear and Re-render
-                chatBox.innerHTML = '';
-                
-                if (data.history.length === 0) {
-                     const hero = document.getElementById('hero-section');
-                     if(hero) hero.style.display = 'block';
+            if (originalText) {
+                const translated = await TranslationManager.translate(originalText, lang);
+                if (role === 'assistant') {
+                    bubble.innerHTML = marked.parse(translated);
                 } else {
-                     const hero = document.getElementById('hero-section');
-                     if(hero) hero.style.display = 'none';
+                    bubble.textContent = translated;
                 }
-
-                data.history.forEach(msg => {
-                    appendMessage(msg.role, msg.content);
+                
+                // Re-apply link attributes
+                const links = bubble.querySelectorAll('a');
+                links.forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
                 });
             }
-        } catch (err) {
-            console.error("Language switch error:", err);
-            chatBox.innerHTML = originalText;
-            alert("Error switching language.");
-        }
+        });
+
+        await Promise.all(tasks);
+        
+        if (label) label.textContent = lang;
+        scrollToBottom();
     };
 
     // Fetch Scheme Details for Chat
@@ -354,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentProfileData = profile;
     };
 
-    const appendMessage = (role, content) => {
+    const appendMessage = async (role, content) => {
         // Hide Hero Section on first message
         const hero = document.getElementById('hero-section');
         if (hero) hero.style.display = 'none';
@@ -365,6 +397,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const bubble = document.createElement('div');
         bubble.className = `message-bubble ${role === 'user' ? 'message-user' : 'message-ai'}`;
         
+        // Store Meta
+        bubble.setAttribute('data-original-text', content);
+        bubble.setAttribute('data-role', role);
+
+        // Initial Render (English / Original)
         if (role === 'assistant') {
             bubble.innerHTML = marked.parse(content);
         } else {
@@ -374,14 +411,27 @@ document.addEventListener('DOMContentLoaded', () => {
         div.appendChild(bubble);
         chatBox.appendChild(div);
         
-        // Force all links in the new message to open in a new tab
-        const links = bubble.querySelectorAll('a');
-        links.forEach(link => {
-            link.setAttribute('target', '_blank');
-            link.setAttribute('rel', 'noopener noreferrer');
-        });
-
+        // Force links
+        const applyLinks = () => {
+            const links = bubble.querySelectorAll('a');
+            links.forEach(link => {
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
+            });
+        };
+        applyLinks();
         scrollToBottom();
+
+        // Check Translation
+        if (currentLanguage !== 'English') {
+            const translated = await TranslationManager.translate(content, currentLanguage);
+            if (role === 'assistant') {
+                bubble.innerHTML = marked.parse(translated);
+            } else {
+                bubble.textContent = translated;
+            }
+            applyLinks();
+        }
     };
 
     chatForm.addEventListener('submit', async (e) => {

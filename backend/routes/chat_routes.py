@@ -108,7 +108,8 @@ def chat():
     missing_fields = [field for field in required_fields if not current_profile.get(field)]
 
     # Determine Language for Response
-    final_language = user_language if user_language else current_profile.get('detected_language', 'English')
+    # ALWAYS generate in English for consistency. Frontend handles translation.
+    final_language = 'English'
     
     # Extract Intent Category (if any)
     intent_category = extracted_profile.get('intent_category')
@@ -197,10 +198,10 @@ def scheme_details():
         if not response_text:
             response_text = "I'm sorry, I couldn't generate details for this scheme right now."
 
-        # Translate if needed
-        language = data.get('language', 'English')
-        if language and language != 'English':
-             response_text = translate_text(response_text, language)
+        # Translation handled by Frontend now
+        # language = data.get('language', 'English')
+        # if language and language != 'English':
+        #      response_text = translate_text(response_text, language)
 
         return jsonify({"response": response_text})
 
@@ -234,6 +235,23 @@ def translate_history():
 
     except Exception as e:
         print(f"Error translating history: {e}")
+        return jsonify({"error": "Translation failed"}), 500
+
+@chat_bp.route('/api/translate', methods=['POST'])
+def translate_text_endpoint():
+    try:
+        data = request.json
+        text = data.get('text')
+        target_language = data.get('language')
+        
+        if not text or not target_language:
+             return jsonify({"error": "Missing params"}), 400
+             
+        translated_text = translate_text(text, target_language)
+        return jsonify({"translated_text": translated_text})
+
+    except Exception as e:
+        print(f"Error translating text: {e}")
         return jsonify({"error": "Translation failed"}), 500
 
 @chat_bp.route('/change-language', methods=['POST'])
