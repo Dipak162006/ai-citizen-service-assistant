@@ -16,23 +16,29 @@
 </head>
 <body>
 
-<div class="d-flex h-100">
+<div class="d-flex h-100 sidebar-wrapper" id="app-wrapper">
+    <!-- Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebarMobile()"></div>
     <!-- Sidebar -->
     <!-- Modern Sidebar -->
     <div class="sidebar-modern">
-        <!-- Header -->
         <div class="sidebar-header-modern">
             <div class="brand-title">
-                <i class="fas fa-robot text-success"></i>
-                <span>AI Assistant</span>
+                <i class="fas fa-robot text-success" onclick="if(document.getElementById('app-wrapper').classList.contains('sidebar-collapsed')) toggleSidebar()" style="cursor: pointer;" title="Expand Sidebar"></i>
+                <span class="sidebar-text">AI Assistant</span>
             </div>
-            <button class="new-chat-btn-modern" onclick="startNewChat()" title="New Chat">
-                <i class="fas fa-plus"></i>
-            </button>
+            <div class="d-flex gap-2 align-items-center">
+                <button class="new-chat-btn-modern sidebar-text" onclick="startNewChat()" title="New Chat">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button class="sidebar-toggle-btn sidebar-text d-none d-md-flex p-1 m-0" onclick="toggleSidebar()" title="Collapse Sidebar" style="font-size: 1.1rem;">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Status Badge -->
-        <div class="ai-badge-container">
+        <div class="ai-badge-container sidebar-text">
             <div class="ai-active-badge">
                 <span class="active-dot"></span> AI ACTIVE
             </div>
@@ -45,7 +51,7 @@
         </div>
 
         <!-- Recommendations -->
-        <div class="section-label">
+        <div class="section-label sidebar-text">
             <span>RECOMMENDED FOR YOU</span>
         </div>
         
@@ -55,10 +61,10 @@
         </div>
 
         <!-- Bottom Controls -->
-        <div class="mt-auto pt-3 border-top border-secondary border-opacity-10">
+        <div class="mt-auto pt-3 border-top border-secondary border-opacity-10 sidebar-text">
             <div class="dropdown w-100">
                 <button class="btn lang-dropdown-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-globe me-2"></i> Language
+                    <i class="fas fa-globe me-2"></i> <span class="sidebar-text-inline">Language</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-dark w-100 shadow-lg border-0" id="language-list">
                     <!-- Languages injected by JS -->
@@ -72,6 +78,13 @@
 
     <!-- Main Content -->
     <div class="main-content">
+        <!-- Minimal Dashboard Header Top Left (Mobile Only) -->
+        <div class="main-header d-md-none">
+            <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
         <!-- Chat Container -->
         <div id="chat-box" class="chat-container w-100">
             <!-- Hero Section (Visible only when empty) -->

@@ -6,6 +6,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let sessionId = localStorage.getItem('chat_session_id');
 
+    // Sidebar State Management
+    const appWrapper = document.getElementById('app-wrapper');
+    const isMobile = window.innerWidth <= 768;
+    
+    // Load saved state or default to collapsed on mobile
+    const savedSidebarState = localStorage.getItem('sidebarState');
+    if (savedSidebarState === 'collapsed' || (isMobile && !savedSidebarState)) {
+        appWrapper.classList.add('sidebar-collapsed');
+    }
+
+    // Global toggle function
+    window.toggleSidebar = () => {
+        appWrapper.classList.toggle('sidebar-collapsed');
+        const isCollapsed = appWrapper.classList.contains('sidebar-collapsed');
+        localStorage.setItem('sidebarState', isCollapsed ? 'collapsed' : 'open');
+    };
+
+    // Global close function for mobile overlay
+    window.closeSidebarMobile = () => {
+        if (window.innerWidth <= 768) {
+            appWrapper.classList.add('sidebar-collapsed');
+            localStorage.setItem('sidebarState', 'collapsed');
+        }
+    };
+
     // Scroll to bottom
     const scrollToBottom = () => {
         chatBox.scrollTop = chatBox.scrollHeight;
@@ -382,16 +407,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Store schemes globally for search filtering
     let allSchemes = [];
+    let isFallbackMode = false;
 
-    const renderSchemes = (schemesUrl) => {
+    const renderSchemes = (schemesUrl, isFallback = false) => {
         const container = document.getElementById('recommendations-box');
         
-        if (schemesUrl.length === 0) {
-            container.innerHTML = `<div class="text-secondary small fst-italic mt-2">No matching schemes.</div>`;
+        let headerMessage = '';
+        if (isFallback) {
+            headerMessage = `<div class="text-warning small mb-3 fw-bold"><i class="fas fa-info-circle me-1"></i> No exact match found. Showing all available schemes.</div>`;
+        }
+
+        if (!schemesUrl || schemesUrl.length === 0) {
+            container.innerHTML = `<div class="text-secondary small fst-italic mt-2">No schemes available.</div>`;
             return;
         }
 
-        container.innerHTML = schemesUrl.map(s => {
+        const cardsHTML = schemesUrl.map(s => {
             const isEligible = s.eligibility_status === 'Eligible';
             const badgeClass = isEligible ? 'rec-card-badge eligible' : 'rec-card-badge';
             
@@ -420,6 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }).join('');
+
+        container.innerHTML = headerMessage + cardsHTML;
     };
 
     // Fetch Recommendations
@@ -427,10 +460,18 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Pass session_id to get intent-based recommendations
             const res = await fetch(`/api/recommendations?session_id=${sessionId || ''}`);
-            allSchemes = await res.json();
+            const data = await res.json();
             
-            // Initial render
-            renderSchemes(allSchemes);
+            // Support both old array format and new object format {schemes, fallback}
+            if (Array.isArray(data)) {
+                allSchemes = data;
+                isFallbackMode = false;
+                renderSchemes(allSchemes, isFallbackMode);
+            } else {
+                allSchemes = data.schemes || [];
+                isFallbackMode = data.fallback || false;
+                renderSchemes(allSchemes, isFallbackMode);
+            }
             
         } catch (e) {
             console.error("Error fetching recommendations:", e);
@@ -447,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 s.category.toLowerCase().includes(term) ||
                 (s.target_group && s.target_group.toLowerCase().includes(term))
             );
-            renderSchemes(filtered);
+            renderSchemes(filtered, isFallbackMode);
         });
     }
 

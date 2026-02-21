@@ -859,6 +859,133 @@ body {
     height: 100vh;
     flex-shrink: 0; /* Prevent sidebar shrink */
     overflow-y: auto;
+    overflow-x: hidden;
+    transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), padding 0.3s ease;
+    z-index: 1050;
+    position: relative;
+}
+
+/* Sidebar Toggle Header */
+.main-header {
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 50;
+}
+
+.sidebar-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+}
+
+.sidebar-toggle-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-toggle-btn i {
+    transition: transform 0.3s ease;
+}
+
+.sidebar-collapsed .sidebar-toggle-btn i {
+    transform: rotate(180deg);
+}
+
+/* Sidebar Collapsed State (Desktop) */
+.sidebar-collapsed .sidebar-modern {
+    width: 80px;
+    padding: 1.5rem 0.5rem;
+}
+
+.sidebar-collapsed .sidebar-text,
+.sidebar-collapsed .sidebar-text-inline,
+.sidebar-collapsed .search-wrapper-modern,
+.sidebar-collapsed .rec-list-container,
+.sidebar-collapsed .active-dot + text {
+    display: none !important;
+}
+
+.sidebar-collapsed .brand-title {
+    justify-content: center;
+    width: 100%;
+}
+
+.sidebar-collapsed .brand-title i {
+    margin: 0;
+}
+
+.sidebar-collapsed .sidebar-header-modern {
+    justify-content: center;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.sidebar-collapsed .dropdown-toggle {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+}
+
+.sidebar-collapsed .dropdown-toggle i {
+    margin: 0 !important;
+}
+
+.sidebar-collapsed .dropdown-toggle::after {
+    display: none; /* Hide dropdown arrow */
+}
+
+/* Mobile Sidebar Overlay */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    z-index: 1040;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .sidebar-modern {
+        position: fixed;
+        left: 0;
+        top: 0;
+        transform: translateX(0);
+        width: 280px; /* Slightly smaller on mobile */
+    }
+
+    .sidebar-wrapper:not(.sidebar-collapsed) .sidebar-overlay {
+        display: block;
+        opacity: 1;
+    }
+
+    .sidebar-collapsed .sidebar-modern {
+        transform: translateX(-100%);
+        width: 280px; /* Keep full width, just move it out */
+        padding: 1.5rem; /* Keep full padding when hidden */
+    }
+
+    .chat-container {
+        padding-top: 3.5rem; /* Room for mobile header toggle */
+    }
 }
 
 /* Header */
