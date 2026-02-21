@@ -23,10 +23,12 @@ def create_app():
     from routes.chat_routes import chat_bp
     from routes.auth_routes import auth_bp
     from routes.recommendation_routes import recommendation_bp
+    from routes.eligibility_routes import eligibility_bp
 
     app.register_blueprint(chat_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(recommendation_bp)
+    app.register_blueprint(eligibility_bp)
 
     @app.route('/')
     def index():

@@ -12,32 +12,31 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, #1a2e23, var(--bg-dark));
+            background: var(--bg-primary);
         }
         .login-card {
             width: 100%;
             max-width: 400px;
-            background: rgba(30, 30, 30, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
             border-radius: 16px;
             padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 32px var(--shadow-color);
         }
         .form-control {
             background-color: var(--bg-surface);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-subtle);
             color: var(--text-primary);
         }
         .form-control:focus {
             background-color: var(--bg-surface);
-            border-color: var(--accent-green);
+            border-color: var(--accent-primary);
             color: var(--text-primary);
-            box-shadow: 0 0 0 0.25rem rgba(0, 230, 118, 0.1);
+            box-shadow: 0 0 0 0.25rem var(--accent-glow);
         }
         .btn-login {
-            background: var(--accent-green);
-            color: #000;
+            background: var(--accent-primary);
+            color: #ffffff;
             font-weight: 600;
             border: none;
             transition: transform 0.2s;
@@ -45,9 +44,10 @@
         .btn-login:hover {
             background: var(--accent-hover);
             transform: scale(1.02);
+            color: #ffffff;
         }
         .link-text {
-            color: var(--accent-green);
+            color: var(--accent-primary);
             text-decoration: none;
         }
         .link-text:hover {
@@ -56,29 +56,40 @@
     </style>
 </head>
 <body>
-    <a href="/" class="text-secondary text-decoration-none position-absolute top-0 start-0 m-4">
+    <script>
+        const theme = localStorage.getItem('site_theme');
+        if (theme === 'light') document.body.classList.add('theme-light');
+    </script>
+
+    <!-- Dynamic Animated Background -->
+    <div class="dynamic-bg-wrapper">
+        <div class="dynamic-bg-blob blob-1"></div>
+        <div class="dynamic-bg-blob blob-2"></div>
+    </div>
+
+    <a href="/" class="theme-text-secondary text-decoration-none position-absolute top-0 start-0 m-4">
         <i class="fas fa-arrow-left me-2"></i>Back to Home
     </a>
     <div class="login-card">
         <div class="text-center mb-4">
-            <h1 class="h3 fw-bold text-white"><i class="fa-solid fa-robot me-2 text-success"></i>Welcome Back</h1>
-            <p class="text-secondary">Login in to access your dashboard</p>
+            <h1 class="h3 fw-bold theme-text-primary"><i class="fa-solid fa-robot me-2 text-success"></i>Welcome Back</h1>
+            <p class="theme-text-secondary">Login in to access your dashboard</p>
         </div>
         
         <div id="alert" class="alert d-none"></div>
         
         <form id="loginForm">
             <div class="mb-3">
-                <label class="form-label text-secondary">Email Address</label>
+                <label class="form-label theme-text-secondary">Email Address</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-envelope"></i></span>
+                    <span class="input-group-text theme-bg-surface theme-border-subtle theme-text-secondary"><i class="fas fa-envelope"></i></span>
                     <input type="email" id="email" class="form-control" required placeholder="name@example.com">
                 </div>
             </div>
             <div class="mb-4">
-                <label class="form-label text-secondary">Password</label>
+                <label class="form-label theme-text-secondary">Password</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-lock"></i></span>
+                    <span class="input-group-text theme-bg-surface theme-border-subtle theme-text-secondary"><i class="fas fa-lock"></i></span>
                     <input type="password" id="password" class="form-control" required placeholder="••••••••">
                 </div>
             </div>
@@ -86,7 +97,7 @@
             <button type="submit" class="btn btn-login w-100 py-2 mb-3">Login</button>
             
             <div class="text-center">
-                <small class="text-secondary">Don't have an account? <a href="/register" class="link-text">Create Account</a></small>
+                <small class="theme-text-secondary">Don't have an account? <a href="/register" class="link-text">Create Account</a></small>
             </div>
         </form>
     </div>

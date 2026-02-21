@@ -29,8 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const applyPreferences = () => {
         // Theme
-        if (userPreferences.theme === 'light') document.body.classList.add('theme-light');
-        else document.body.classList.remove('theme-light');
+        if (userPreferences.theme === 'light') {
+            document.body.classList.add('theme-light');
+            localStorage.setItem('site_theme', 'light');
+        } else {
+            document.body.classList.remove('theme-light');
+            localStorage.setItem('site_theme', 'dark');
+        }
 
         // Text Size
         document.body.classList.remove('text-size-small', 'text-size-large');
@@ -1083,3 +1088,177 @@ async function saveProfileSettings() {
         btn.disabled = false;
     }
 }
+
+// --- Password Update Handling ---
+document.addEventListener('DOMContentLoaded', () => {
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = document.getElementById('current_password').value;
+            const newPassword = document.getElementById('new_password').value;
+            const confirmPassword = document.getElementById('confirm_new_password').value;
+            const alertBox = document.getElementById('password-alert');
+            const btn = document.getElementById('change-pwd-btn');
+            
+            if (newPassword !== confirmPassword) {
+                alertBox.textContent = "New passwords do not match!";
+                alertBox.className = 'alert alert-danger mb-3';
+                alertBox.classList.remove('d-none');
+                return;
+            }
+            
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Updating...`;
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/user/password', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword,
+                        confirm_password: confirmPassword
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alertBox.textContent = data.message;
+                    alertBox.className = 'alert alert-success mb-3';
+                    alertBox.classList.remove('d-none');
+                    changePasswordForm.reset();
+                    
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                        if (modal) modal.hide();
+                        alertBox.classList.add('d-none');
+                    }, 2000);
+                } else {
+                    alertBox.textContent = data.error || "Failed to update password";
+                    alertBox.className = 'alert alert-danger mb-3';
+                    alertBox.classList.remove('d-none');
+                }
+            } catch (err) {
+                alertBox.textContent = "Connection error";
+                alertBox.className = 'alert alert-danger mb-3';
+                alertBox.classList.remove('d-none');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    // --- Eligibility Checker Submission ---
+    const eligibilityForm = document.getElementById('eligibilityForm');
+    if (eligibilityForm) {
+        eligibilityForm.addEventListener('submit', handleEligibilitySubmit);
+    }
+});
+
+// --- Eligibility Checker Functions ---
+async function handleEligibilitySubmit(e) {
+    e.preventDefault();
+    
+    // UI Transitions
+    const formContainer = document.getElementById('eligibility-form-container');
+    const resultsContainer = document.getElementById('eligibility-results-container');
+    const loadingState = document.getElementById('eligibility-results-loading');
+    const contentState = document.getElementById('eligibility-results-content');
+    
+    formContainer.classList.add('d-none');
+    resultsContainer.classList.remove('d-none');
+    loadingState.classList.remove('d-none');
+    contentState.classList.add('d-none');
+
+    // Gather Form Data payload
+    const payload = {
+        age: parseInt(document.getElementById('elig-age').value),
+        gender: document.getElementById('elig-gender').value,
+        income: parseInt(document.getElementById('elig-income').value),
+        occupation: document.getElementById('elig-occupation').value,
+        state: document.getElementById('elig-state').value,
+        category: document.getElementById('elig-category').value
+    };
+
+    try {
+        const res = await fetch('/api/eligibility/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+        
+        // Render JSON Response
+        renderEligibilityResults(data);
+        
+        // Final UI Swaps
+        loadingState.classList.add('d-none');
+        contentState.classList.remove('d-none');
+
+    } catch (err) {
+        console.error("Eligibility Check Failed:", err);
+        alert("There was an error calculating eligibility. Please try again.");
+        resetEligibilityForm();
+    }
+}
+
+function renderEligibilityResults(data) {
+    // Inject Counts
+    document.getElementById('count-eligible').innerText = data.eligible.length;
+    document.getElementById('count-partial').innerText = data.partial.length;
+    document.getElementById('count-not-eligible').innerText = data.not_eligible.length;
+    
+    // Build Lists
+    const eligibleDiv = document.getElementById('results-eligible');
+    const partialDiv = document.getElementById('results-partial');
+    const notEligibleDiv = document.getElementById('results-not-eligible');
+    
+    eligibleDiv.innerHTML = data.eligible.length > 0 ? data.eligible.map(s => buildSchemeCard(s, 'eligible')).join('') : '<div class="text-secondary small fst-italic">No fully matched schemes found.</div>';
+    partialDiv.innerHTML = data.partial.length > 0 ? data.partial.map(s => buildSchemeCard(s, 'partial')).join('') : '<div class="text-secondary small fst-italic">No partially matched schemes found.</div>';
+    notEligibleDiv.innerHTML = data.not_eligible.length > 0 ? data.not_eligible.map(s => buildSchemeCard(s, 'not-eligible')).join('') : '<div class="text-secondary small fst-italic">No rejected schemes.</div>';
+}
+
+function buildSchemeCard(scheme, type) {
+    const borderColor = type === 'eligible' ? 'border-success' : (type === 'partial' ? 'border-warning' : 'border-danger');
+    const collapseId = `reasons-${scheme.id}`;
+    
+    // Build badges for reasons
+    const reasonsHtml = scheme.reasons.map(r => `
+        <div class="d-flex align-items-center mb-1">
+            <i class="fas ${r.met ? 'fa-check text-success' : 'fa-times text-danger'} me-2"></i>
+            <small class="theme-text-secondary">${r.detail}</small>
+        </div>
+    `).join('');
+
+    return `
+        <div class="card theme-bg-surface theme-text-primary ${borderColor} shadow-sm border-start border-4 border-top-0 border-bottom-0 border-end-0 border-opacity-75">
+            <div class="card-body py-2 px-3">
+                <h6 class="fw-bold mb-1">${scheme.name}</h6>
+                <p class="small theme-text-secondary mb-2 lh-sm">${scheme.description}</p>
+                <a class="text-decoration-none small" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                    View Requirements <i class="fas fa-chevron-down ms-1" style="font-size: 0.75em;"></i>
+                </a>
+                <div class="collapse mt-2 pt-2 border-top theme-border-subtle" id="${collapseId}">
+                    ${reasonsHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+window.resetEligibilityForm = () => {
+    // Resets visibility state back to Input Form
+    const formContainer = document.getElementById('eligibility-form-container');
+    const resultsContainer = document.getElementById('eligibility-results-container');
+    
+    if (formContainer && resultsContainer) {
+        formContainer.classList.remove('d-none');
+        resultsContainer.classList.add('d-none');
+    }
+};

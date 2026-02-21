@@ -16,6 +16,12 @@
 </head>
 <body>
 
+<!-- Dynamic Animated Background -->
+<div class="dynamic-bg-wrapper">
+    <div class="dynamic-bg-blob blob-1"></div>
+    <div class="dynamic-bg-blob blob-2"></div>
+</div>
+
 <div class="d-flex h-100 sidebar-wrapper" id="app-wrapper">
     <!-- Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebarMobile()"></div>
@@ -37,6 +43,22 @@
             </div>
         </div>
 
+        <!-- Collapsed Sidebar Quick Actions -->
+        <div class="collapsed-only-icons flex-column align-items-center gap-3 w-100 mt-2 mb-4">
+            <button class="sidebar-toggle-btn p-2 m-0 border-0" onclick="startNewChat()" title="New Chat">
+                <i class="fas fa-edit fs-5"></i>
+            </button>
+            <button class="sidebar-toggle-btn p-2 m-0 border-0" onclick="toggleSidebar(); setTimeout(() => document.getElementById('scheme-search').focus(), 300);" title="Search Themes">
+                <i class="fas fa-search fs-5"></i>
+            </button>
+            <button class="sidebar-toggle-btn p-2 m-0 border-0" onclick="toggleSidebar()" title="Explore Settings">
+                <i class="fas fa-th-large fs-5"></i>
+            </button>
+            <button class="sidebar-toggle-btn p-2 m-0 border-0 text-success" data-bs-toggle="modal" data-bs-target="#eligibilityModal" title="Check Eligibility">
+                <i class="fas fa-clipboard-check fs-5"></i>
+            </button>
+        </div>
+
         <!-- Status Badge -->
         <div class="ai-badge-container sidebar-text">
             <div class="ai-active-badge">
@@ -48,6 +70,13 @@
         <div class="search-wrapper-modern">
             <input type="text" id="scheme-search" class="search-input-modern" placeholder="Search schemes...">
             <i class="fas fa-search search-icon-modern"></i>
+        </div>
+
+        <!-- Sidebar Actions -->
+        <div class="sidebar-text w-100 mb-4">
+            <button class="btn btn-success w-100 fw-bold d-flex align-items-center justify-content-center gap-2 py-2" data-bs-toggle="modal" data-bs-target="#eligibilityModal" style="border-radius: 12px; font-size: 0.95rem;">
+                <i class="fas fa-clipboard-check"></i> Check Eligibility
+            </button>
         </div>
 
         <!-- Recommendations -->
@@ -74,12 +103,13 @@
                         </div>
                     </div>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-dark shadow-lg profile-menu theme-border-subtle w-100 mb-2 p-2 theme-bg-card" style="border-radius: 12px;">
+                <ul class="dropdown-menu dropdown-menu-dark shadow-lg profile-menu theme-border-subtle mb-2 p-2 theme-bg-card" style="border-radius: 12px; width: 260px;">
                     <li class="dropdown-item-text theme-text-primary border-bottom theme-border-subtle mb-2 pb-2 px-3">
                         <div class="fw-bold" style="font-size: 0.95rem;">{{ user_name }}</div>
                         <small class="theme-text-secondary" style="font-size: 0.8rem;">{{ user_email if user_email else 'user@example.com' }}</small>
                     </li>
                     <li><a class="dropdown-item theme-text-primary hover-bg-surface rounded py-2" href="#" onclick="openSettingsModal()"><i class="fas fa-cog fa-fw me-2 theme-text-secondary"></i> Settings</a></li>
+                    <li><a class="dropdown-item theme-text-primary hover-bg-surface rounded py-2" href="#" data-bs-toggle="modal" data-bs-target="#eligibilityModal"><i class="fas fa-clipboard-check fa-fw me-2 theme-text-secondary"></i> Check Eligibility</a></li>
                     <li><a class="dropdown-item theme-text-primary hover-bg-surface rounded py-2" href="#" data-bs-toggle="modal" data-bs-target="#helpModal"><i class="fas fa-question-circle fa-fw me-2 theme-text-secondary"></i> Help & FAQ</a></li>
                     <li><hr class="dropdown-divider theme-border-subtle my-2"></li>
                     <li><a class="dropdown-item text-danger hover-bg-surface rounded py-2" href="/logout"><i class="fas fa-sign-out-alt fa-fw me-2"></i> Log out</a></li>
@@ -261,7 +291,7 @@
                             <div class="mb-4 max-w-lg">
                                 <label class="theme-text-secondary small fw-bold mb-2">SECURITY</label>
                                 <div>
-                                    <button class="btn btn-outline-danger w-100 text-start p-3 rounded-3" onclick="alert('Password reset link sent to {{ user_email }}')"><i class="fas fa-key me-2"></i> Change Password</button>
+                                    <button class="btn btn-outline-danger w-100 text-start p-3 rounded-3" data-bs-toggle="modal" data-bs-target="#changePasswordModal"><i class="fas fa-key me-2"></i> Change Password</button>
                                 </div>
                             </div>
                         </div>
@@ -346,6 +376,183 @@
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content theme-text-primary theme-bg-card theme-border-subtle shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom theme-border-subtle p-4">
+                <h5 class="modal-title fw-bold" id="changePasswordModalLabel"><i class="fas fa-lock me-2 text-warning"></i> Change Password</h5>
+                <button type="button" class="btn-close theme-btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="password-alert" class="alert d-none"></div>
+                <form id="changePasswordForm">
+                    <div class="mb-3">
+                        <label class="form-label theme-text-secondary small fw-bold">CURRENT PASSWORD</label>
+                        <input type="password" id="current_password" class="form-control theme-input p-3 rounded-3" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label theme-text-secondary small fw-bold">NEW PASSWORD</label>
+                        <input type="password" id="new_password" class="form-control theme-input p-3 rounded-3" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label theme-text-secondary small fw-bold">CONFIRM NEW PASSWORD</label>
+                        <input type="password" id="confirm_new_password" class="form-control theme-input p-3 rounded-3" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-3 fw-bold" id="change-pwd-btn">Update Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Eligibility Checker Modal -->
+<div class="modal fade" id="eligibilityModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content theme-text-primary theme-bg-card theme-border-subtle shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom theme-border-subtle p-4">
+                <h5 class="modal-title fw-bold" data-i18n="check_eligibility">
+                    <i class="fas fa-clipboard-check text-success me-2"></i> Check Eligibility
+                </h5>
+                <button type="button" class="btn-close theme-btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="resetEligibilityForm()"></button>
+            </div>
+            <div class="modal-body p-4 p-md-5 position-relative">
+                <!-- Step 1: Form Container -->
+                <div id="eligibility-form-container">
+                    <p class="theme-text-secondary small mb-4">Provide some basic details about yourself so we can instantly match you with eligible government schemes & subsidies without interrupting your chat.</p>
+                    <form id="eligibilityForm">
+                        <div class="row g-3 m-0 w-100">
+                            <!-- Age -->
+                            <div class="col-md-6">
+                                <label class="form-label theme-text-secondary small fw-bold" data-i18n="age">AGE *</label>
+                                <input type="number" id="elig-age" name="age" class="form-control theme-input p-3" required min="1" max="120" placeholder="e.g. 25">
+                            </div>
+                            <!-- Gender -->
+                            <div class="col-md-6">
+                                <label class="form-label theme-text-secondary small fw-bold" data-i18n="gender">GENDER *</label>
+                                <select id="elig-gender" name="gender" class="form-select theme-input p-3 shadow-none" required>
+                                    <option value="" disabled selected>Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="transgender">Transgender</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <!-- Annual Income -->
+                            <div class="col-md-6">
+                                <label class="form-label theme-text-secondary small fw-bold" data-i18n="income">ANNUAL INCOME (₹) *</label>
+                                <input type="number" id="elig-income" name="income" class="form-control theme-input p-3" required min="0" placeholder="e.g. 500000">
+                            </div>
+                            <!-- Occupation -->
+                            <div class="col-md-6">
+                                <label class="form-label theme-text-secondary small fw-bold" data-i18n="occupation">OCCUPATION *</label>
+                                <select id="elig-occupation" name="occupation" class="form-select theme-input p-3 shadow-none" required>
+                                    <option value="" disabled selected>Select Occupation</option>
+                                    <option value="student">Student</option>
+                                    <option value="farmer">Farmer</option>
+                                    <option value="unemployed">Unemployed</option>
+                                    <option value="employed">Employed (Salaried)</option>
+                                    <option value="business">Business / Self-Employed</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <!-- State -->
+                            <div class="col-md-6">
+                                <label class="form-label theme-text-secondary small fw-bold" data-i18n="state">STATE *</label>
+                                <select id="elig-state" name="state" class="form-select theme-input p-3 shadow-none" required>
+                                    <option value="all" selected>All India (Central Schemes)</option>
+                                    <option value="andhra_pradesh">Andhra Pradesh</option>
+                                    <option value="arunachal_pradesh">Arunachal Pradesh</option>
+                                    <option value="assam">Assam</option>
+                                    <option value="bihar">Bihar</option>
+                                    <option value="chhattisgarh">Chhattisgarh</option>
+                                    <option value="goa">Goa</option>
+                                    <option value="gujarat">Gujarat</option>
+                                    <option value="haryana">Haryana</option>
+                                    <option value="himachal_pradesh">Himachal Pradesh</option>
+                                    <option value="jharkhand">Jharkhand</option>
+                                    <option value="karnataka">Karnataka</option>
+                                    <option value="kerala">Kerala</option>
+                                    <option value="madhya_pradesh">Madhya Pradesh</option>
+                                    <option value="maharashtra">Maharashtra</option>
+                                    <option value="manipur">Manipur</option>
+                                    <option value="meghalaya">Meghalaya</option>
+                                    <option value="mizoram">Mizoram</option>
+                                    <option value="nagaland">Nagaland</option>
+                                    <option value="odisha">Odisha</option>
+                                    <option value="punjab">Punjab</option>
+                                    <option value="rajasthan">Rajasthan</option>
+                                    <option value="sikkim">Sikkim</option>
+                                    <option value="tamil_nadu">Tamil Nadu</option>
+                                    <option value="telangana">Telangana</option>
+                                    <option value="tripura">Tripura</option>
+                                    <option value="uttar_pradesh">Uttar Pradesh</option>
+                                    <option value="uttarakhand">Uttarakhand</option>
+                                    <option value="west_bengal">West Bengal</option>
+                                    <option value="delhi">Delhi (NCT)</option>
+                                    <option value="jammu_kashmir">Jammu & Kashmir</option>
+                                    <option value="other_ut">Other Union Territory</option>
+                                </select>
+                            </div>
+                            <!-- Category -->
+                            <div class="col-md-6">
+                                <label class="form-label theme-text-secondary small fw-bold" data-i18n="category">SOCIAL CATEGORY *</label>
+                                <select id="elig-category" name="category" class="form-select theme-input p-3 shadow-none" required>
+                                    <option value="" disabled selected>Select Category</option>
+                                    <option value="general">General</option>
+                                    <option value="obc">OBC</option>
+                                    <option value="sc_st">SC / ST</option>
+                                    <option value="minority">Minority</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-top theme-border-subtle d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2 fw-bold" data-bs-dismiss="modal" onclick="resetEligibilityForm()">Cancel</button>
+                            <button type="submit" class="btn btn-success fw-bold px-4 py-2" id="eligibility-submit-btn">
+                                <i class="fas fa-search me-2"></i> Find Schemes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Step 2: Results Container (Initially Hidden) -->
+                <div id="eligibility-results-container" class="d-none">
+                    <div class="results-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
+                        <h5 class="fw-bold theme-text-primary m-0"><i class="fas fa-poll text-primary me-2"></i> Your Eligibility Matches</h5>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="resetEligibilityForm()"><i class="fas fa-edit me-1"></i> Edit Details</button>
+                    </div>
+                    
+                    <div id="eligibility-results-loading" class="text-center py-5 d-none">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="theme-text-secondary mt-3 small">Analyzing massive database against your profile...</p>
+                    </div>
+
+                    <div id="eligibility-results-content">
+                        <!-- Eligible (Green) -->
+                        <div class="mb-4">
+                            <h6 class="text-success fw-bold border-bottom theme-border-subtle pb-2"><i class="fas fa-check-circle me-2"></i> Fully Eligible (<span id="count-eligible">0</span>)</h6>
+                            <div id="results-eligible" class="d-flex flex-column gap-3 mt-3"></div>
+                        </div>
+
+                        <!-- Partial (Yellow) -->
+                        <div class="mb-4">
+                            <h6 class="text-warning fw-bold border-bottom theme-border-subtle pb-2"><i class="fas fa-exclamation-triangle me-2"></i> Partially Eligible (<span id="count-partial">0</span>)</h6>
+                            <div id="results-partial" class="d-flex flex-column gap-3 mt-3"></div>
+                        </div>
+
+                        <!-- Not Eligible (Red) -->
+                        <div>
+                            <h6 class="text-danger fw-bold border-bottom theme-border-subtle pb-2"><i class="fas fa-times-circle me-2"></i> Not Eligible (<span id="count-not-eligible">0</span>)</h6>
+                            <div id="results-not-eligible" class="d-flex flex-column gap-3 mt-3"></div>
+                        </div>
                     </div>
                 </div>
             </div>
