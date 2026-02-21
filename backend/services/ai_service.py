@@ -98,6 +98,7 @@ def generate_response(user_query, schemes, profile, missing_fields=None, languag
         4. Do NOT ask for personal details (age, income, etc.) unless absolutely necessary for the answer.
         5. Maintain a professional yet friendly tone.
         6. Respond ONLY in {language}.
+        7. DO NOT repeat, echo, or quote the user's original message in your response.
         """
     
     # 2. Handle Scheme / Eligibility Intents (Use Scheme Logic)
@@ -127,6 +128,7 @@ def generate_response(user_query, schemes, profile, missing_fields=None, languag
         3. **Missing Info**: If I miss critical info (Occupation, Income, State, Age) *for the eligible schemes*, politely ask.
         4. **Tone**: Professional, encouraging, and clear.
         5. **Output**: Respond ONLY in {language}.
+        6. **No Echo**: DO NOT repeat, echo, or quote the user's original message in your response.
         """
 
     messages = [

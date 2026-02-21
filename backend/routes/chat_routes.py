@@ -4,6 +4,7 @@ from services.ai_service import extract_profile, generate_response, translate_te
 from services.scheme_service import find_eligible_schemes
 import os
 import re
+import uuid
 
 chat_bp = Blueprint('chat', __name__)
 

@@ -369,14 +369,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if(document.getElementById('typing')) document.getElementById('typing').remove();
 
             if (data.error) {
-                appendMessage('assistant', `Error: ${data.error}`);
+                renderAssistantMessage(`Error: ${data.error}`);
             } else {
-                appendMessage('assistant', data.response);
+                renderAssistantMessage(data.response);
             }
         } catch (e) {
             console.error(e);
             if(document.getElementById('typing')) document.getElementById('typing').remove();
-            appendMessage('assistant', "Sorry, I couldn't fetch details for that scheme right now.");
+            renderAssistantMessage("Sorry, I couldn't fetch details for that scheme right now.");
         }
     };
 
@@ -581,34 +581,54 @@ document.addEventListener('DOMContentLoaded', () => {
         currentProfileData = profile;
     };
 
-    const appendMessage = async (role, content) => {
+    const renderUserMessage = (content) => {
         // Hide Hero Section on first message
         const hero = document.getElementById('hero-section');
         if (hero) hero.style.display = 'none';
 
         const div = document.createElement('div');
-        div.className = `d-flex w-100 mb-3 ${role === 'user' ? 'justify-content-end' : 'justify-content-start'}`;
+        div.className = `d-flex w-100 mb-3 justify-content-end`;
         
         const bubble = document.createElement('div');
-        bubble.className = `message-bubble ${role === 'user' ? 'message-user' : 'message-ai'}`;
+        bubble.className = `message-bubble message-user`;
         
         // Store Meta
         bubble.setAttribute('data-original-text', content);
-        bubble.setAttribute('data-role', role);
+        bubble.setAttribute('data-role', 'user');
 
-        // Container inside bubble to hold text and potentially the speak button
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'message-content';
+        contentContainer.textContent = content;
+
+        bubble.appendChild(contentContainer);
+        div.appendChild(bubble);
+        chatBox.appendChild(div);
+        
+        scrollToBottom();
+    };
+
+    const renderAssistantMessage = async (content) => {
+        // Hide Hero Section on first message
+        const hero = document.getElementById('hero-section');
+        if (hero) hero.style.display = 'none';
+
+        const div = document.createElement('div');
+        div.className = `d-flex w-100 mb-3 justify-content-start`;
+        
+        const bubble = document.createElement('div');
+        bubble.className = `message-bubble message-ai`;
+        
+        // Store Meta
+        bubble.setAttribute('data-original-text', content);
+        bubble.setAttribute('data-role', 'assistant');
+
         const contentContainer = document.createElement('div');
         contentContainer.className = 'message-content';
 
-        let ttsText = content; // Text to be used for TTS
-        let bcpLang = currentLanguage;
+        let ttsText = content; 
 
         // Initial Render (English / Original)
-        if (role === 'assistant') {
-            contentContainer.innerHTML = marked.parse(content);
-        } else {
-            contentContainer.textContent = content;
-        }
+        contentContainer.innerHTML = marked.parse(content);
 
         bubble.appendChild(contentContainer);
         div.appendChild(bubble);
@@ -629,27 +649,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentLanguage !== 'English') {
             const translated = await TranslationManager.translate(content, currentLanguage);
             ttsText = translated;
-            if (role === 'assistant') {
-                contentContainer.innerHTML = marked.parse(translated);
-            } else {
-                contentContainer.textContent = translated;
-            }
+            contentContainer.innerHTML = marked.parse(translated);
             applyLinks();
         }
 
-        // Add Speech Button for Assistant ONLY AFTER final text is determined
-        if (role === 'assistant') {
-            const speakBtn = document.createElement('button');
-            speakBtn.className = 'speak-btn';
-            speakBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-            speakBtn.title = "Read aloud";
-            
-            // We use a closure to capture the final ttsText and currentLanguage
-            speakBtn.onclick = () => window.toggleSpeech(speakBtn, ttsText, currentLanguage);
-            
-            // Append button slightly outside or inside top-right
-            bubble.appendChild(speakBtn);
-        }
+        // Add Speech Button for Assistant 
+        const speakBtn = document.createElement('button');
+        speakBtn.className = 'speak-btn';
+        speakBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+        speakBtn.title = "Read aloud";
+        
+        speakBtn.onclick = () => window.toggleSpeech(speakBtn, ttsText, currentLanguage);
+        bubble.appendChild(speakBtn);
     };
 
     chatForm.addEventListener('submit', async (e) => {
@@ -658,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!message) return;
 
         // Add User Message
-        appendMessage('user', message);
+        renderUserMessage(message);
         userInput.value = '';
         userInput.disabled = true;
 
@@ -689,9 +700,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('typing').remove();
 
             if (data.error) {
-                appendMessage('assistant', `Error: ${data.error}`);
+                renderAssistantMessage(`Error: ${data.error}`);
             } else {
-                appendMessage('assistant', data.response);
+                renderAssistantMessage(data.response);
                 
                 // Update Session
                 if (data.session_id) {
@@ -714,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             document.getElementById('typing').remove();
-            appendMessage('assistant', 'Network Error. Is the backend running?');
+            renderAssistantMessage('Network Error. Is the backend running?');
             console.error(err);
         } finally {
             userInput.disabled = false;
