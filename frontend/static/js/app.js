@@ -10,6 +10,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const appWrapper = document.getElementById('app-wrapper');
     const isMobile = window.innerWidth <= 768;
     
+    // --- User Preferences & Settings ---
+    let userPreferences = {
+        theme: 'dark', // 'dark' | 'light'
+        textSize: 'medium', // 'small' | 'medium' | 'large'
+        autoTts: false,
+        highContrast: false
+    };
+
+    // Load from LocalStorage immediately
+    const loadPreferences = () => {
+        const saved = localStorage.getItem('app_preferences_' + (window.userId || 'guest'));
+        if (saved) {
+            try { userPreferences = { ...userPreferences, ...JSON.parse(saved) }; } 
+            catch(e) { console.error("Pref Parse Error:", e); }
+        }
+    };
+
+    const applyPreferences = () => {
+        // Theme
+        if (userPreferences.theme === 'light') document.body.classList.add('theme-light');
+        else document.body.classList.remove('theme-light');
+
+        // Text Size
+        document.body.classList.remove('text-size-small', 'text-size-large');
+        if (userPreferences.textSize === 'small') document.body.classList.add('text-size-small');
+        if (userPreferences.textSize === 'large') document.body.classList.add('text-size-large');
+
+        // High Contrast
+        if (userPreferences.highContrast) document.body.classList.add('high-contrast');
+        else document.body.classList.remove('high-contrast');
+
+        // Update UI forms to match state (if modal is open)
+        const themeDarkOpt = document.getElementById('theme-dark');
+        const themeLightOpt = document.getElementById('theme-light');
+        if(themeDarkOpt && userPreferences.theme === 'dark') themeDarkOpt.checked = true;
+        if(themeLightOpt && userPreferences.theme === 'light') themeLightOpt.checked = true;
+
+        const textSizeOpt = document.getElementById('setting-textsize');
+        if(textSizeOpt) textSizeOpt.value = userPreferences.textSize;
+
+        const autoTtsOpt = document.getElementById('setting-autotts');
+        if(autoTtsOpt) autoTtsOpt.checked = userPreferences.autoTts;
+
+        const highContrastOpt = document.getElementById('setting-highcontrast');
+        if(highContrastOpt) highContrastOpt.checked = userPreferences.highContrast;
+    };
+
+    window.updatePreference = (key, value) => {
+        userPreferences[key] = value;
+        localStorage.setItem('app_preferences_' + (window.userId || 'guest'), JSON.stringify(userPreferences));
+        applyPreferences();
+    };
+
+    window.openSettingsModal = () => {
+        const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+        modal.show();
+    };
+
+    // Initialize Preferences
+    loadPreferences();
+    applyPreferences();
+    // ------------------------------------
+
     // Load saved state or default to collapsed on mobile
     const savedSidebarState = localStorage.getItem('sidebarState');
     if (savedSidebarState === 'collapsed' || (isMobile && !savedSidebarState)) {
@@ -247,6 +310,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.selectLanguage = (lang) => {
+        // This function is still used by logic elsewhere if needed, 
+        // though UI is mostly in settings now.
         const menu = document.getElementById('lang-menu');
         const label = document.getElementById('current-lang');
         if (menu) menu.style.display = 'none';
@@ -406,14 +471,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Store schemes globally for search filtering
-    let allSchemes = [];
-    let isFallbackMode = false;
+    let recommendationState = { mode: 'default', schemes: [] };
 
-    const renderSchemes = (schemesUrl, isFallback = false) => {
+    const renderSchemes = () => {
         const container = document.getElementById('recommendations-box');
+        const schemesUrl = recommendationState.schemes;
+        const mode = recommendationState.mode;
         
+        // Show banner ONLY when we are explicitly in "fallback" mode from the server.
         let headerMessage = '';
-        if (isFallback) {
+        if (mode === 'fallback') {
             headerMessage = `<div class="text-warning small mb-3 fw-bold"><i class="fas fa-info-circle me-1"></i> No exact match found. Showing all available schemes.</div>`;
         }
 
@@ -429,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="rec-card-modern" onclick="fetchSchemeDetails('${s.name}')">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="text-white fw-bold" style="font-size: 0.95rem;">${s.name}</div>
+                        <div class="theme-text-primary fw-bold" style="font-size: 0.95rem;">${s.name}</div>
                         <span class="badgex" style="font-size: 0.6rem; background: rgba(0,230,118,0.1); color: var(--accent-green); padding: 2px 6px; border-radius: 4px;">ELIGIBLE</span>
                     </div>
                     <div class="text-secondary small mb-3" style="font-size: 0.8rem; line-height: 1.4;">
@@ -442,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <a href="${s.official_link || '#'}" 
                            target="_blank" 
                            rel="noopener noreferrer" 
-                           class="text-decoration-none text-white small"
+                           class="text-decoration-none theme-text-primary small"
                            onclick="event.stopPropagation()"
                            style="font-size: 0.75rem; opacity: 0.7; transition: opacity 0.2s;">
                             View <i class="fas fa-external-link-alt ms-1"></i>
@@ -462,16 +529,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`/api/recommendations?session_id=${sessionId || ''}`);
             const data = await res.json();
             
-            // Support both old array format and new object format {schemes, fallback}
+            // Parse response structure
             if (Array.isArray(data)) {
-                allSchemes = data;
-                isFallbackMode = false;
-                renderSchemes(allSchemes, isFallbackMode);
+                recommendationState.schemes = data;
+                // If it's an old array format and chat hasn't started, it's default
+                const hasChatMessages = chatBox.querySelectorAll('.message-bubble').length > 0;
+                recommendationState.mode = hasChatMessages ? 'filtered' : 'default';
             } else {
-                allSchemes = data.schemes || [];
-                isFallbackMode = data.fallback || false;
-                renderSchemes(allSchemes, isFallbackMode);
+                recommendationState.schemes = data.schemes || [];
+                const hasChatMessages = chatBox.querySelectorAll('.message-bubble').length > 0;
+                recommendationState.mode = hasChatMessages ? (data.mode || 'filtered') : 'default';
             }
+            
+            renderSchemes();
             
         } catch (e) {
             console.error("Error fetching recommendations:", e);
@@ -483,17 +553,66 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            const filtered = allSchemes.filter(s => 
+            
+            // Backup current schemes globally if we want to filter them
+            // We just mutate a copy of state to render
+            const originalSchemes = recommendationState.schemes;
+
+            const filtered = originalSchemes.filter(s => 
                 s.name.toLowerCase().includes(term) || 
                 s.category.toLowerCase().includes(term) ||
                 (s.target_group && s.target_group.toLowerCase().includes(term))
             );
-            renderSchemes(filtered, isFallbackMode);
+            
+            // Temporarily trick renderSchemes by overriding schemes pointer without changing the global mode
+            const container = document.getElementById('recommendations-box');
+            // Duplicate the render logic minimally here for search without mutating real state
+            
+            let headerMessage = '';
+            if (recommendationState.mode === 'fallback') {
+                headerMessage = `<div class="text-warning small mb-3 fw-bold"><i class="fas fa-info-circle me-1"></i> No exact match found. Showing all available schemes.</div>`;
+            }
+
+            if (!filtered || filtered.length === 0) {
+                container.innerHTML = headerMessage + `<div class="text-secondary small fst-italic mt-2">No matching schemes.</div>`;
+                return;
+            }
+
+            const cardsHTML = filtered.map(s => {
+                const isEligible = s.eligibility_status === 'Eligible';
+                return `
+                    <div class="rec-card-modern" onclick="fetchSchemeDetails('${s.name}')">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="theme-text-primary fw-bold" style="font-size: 0.95rem;">${s.name}</div>
+                            <span class="badgex" style="font-size: 0.6rem; background: rgba(0,230,118,0.1); color: var(--accent-green); padding: 2px 6px; border-radius: 4px;">ELIGIBLE</span>
+                        </div>
+                        <div class="text-secondary small mb-3" style="font-size: 0.8rem; line-height: 1.4;">
+                            ${s.description ? s.description.substring(0, 60) + '...' : 'No description.'}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="theme-text-secondary" style="font-size: 0.75rem;">
+                                <i class="fas ${getCategoryIcon(s.category)} me-1"></i> ${s.category}
+                            </div>
+                            <a href="${s.official_link || '#'}" target="_blank" rel="noopener noreferrer" class="text-decoration-none theme-text-primary small" onclick="event.stopPropagation()">View <i class="fas fa-external-link-alt ms-1"></i></a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            container.innerHTML = headerMessage + cardsHTML;
         });
     }
 
     // Call on load
-    renderLanguageDropdown(); // Render languages first
+    const renderSettingsLanguageDropdown = () => {
+        const select = document.getElementById('setting-language-select');
+        if (!select) return;
+        select.innerHTML = LANGUAGES.map(lang => 
+            `<option value="${lang.code}" ${currentLanguage === lang.code ? 'selected' : ''}>${lang.native} - ${lang.code}</option>`
+        ).join('');
+    };
+    
+    renderLanguageDropdown(); // legacy
+    renderSettingsLanguageDropdown();
     updateLanguageUI(currentLanguage); // Set initial active state
     if(currentLanguage !== 'English') {
         // Update label immediately if saved language is not English
@@ -700,8 +819,10 @@ document.addEventListener('DOMContentLoaded', () => {
         speakBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
         speakBtn.title = "Read aloud";
         
-        speakBtn.onclick = () => window.toggleSpeech(speakBtn, ttsText, currentLanguage);
-        bubble.appendChild(speakBtn);
+        // Auto-TTS Feature Check
+        if (userPreferences.autoTts) {
+            window.toggleSpeech(speakBtn, ttsText, currentLanguage);
+        }
     };
 
     chatForm.addEventListener('submit', async (e) => {
@@ -821,8 +942,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/api/clear_chat', { method: 'POST' })
             .catch(err => console.error("Failed to clear backend session:", err));
         
-        // Refresh recommendations (reset to default)
-        fetchRecommendations();
+        // Refresh recommendations (reset state strictly to default right away)
+        recommendationState.mode = 'default';
+        renderSchemes();
+        // optionally fetch new defaults immediately if needed: fetchRecommendations();
     };
 
     // --- Voice Input (Speech-to-Text) ---
@@ -902,3 +1025,61 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("Speech recognition is not supported in this browser.");
     }
 });
+
+// --- User Profile Functions ---
+
+async function saveProfileSettings() {
+    const btn = document.getElementById('save-profile-btn');
+    const originalText = btn.innerHTML;
+    const spinner = `<i class="fas fa-spinner fa-spin"></i> Saving...`;
+    
+    btn.innerHTML = spinner;
+    btn.disabled = true;
+
+    const newName = document.getElementById('setting-name').value;
+    
+    // Prepare data
+    const payload = {};
+    if (newName) payload.full_name = newName;
+
+    try {
+        const res = await fetch('/api/user/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            // Update sidebar profile trigger dynamically without a full reload
+            const sidebarAvatar = document.getElementById('sidebar-profile-avatar');
+            if (sidebarAvatar) {
+                sidebarAvatar.innerHTML = (data.full_name || 'U').charAt(0).toUpperCase();
+            }
+            
+            // Update UI Name
+            const profileInfoName = document.querySelector('.profile-info .fw-semibold');
+            if (profileInfoName) profileInfoName.innerText = data.full_name;
+            
+            const profileMenuName = document.querySelector('.profile-menu .dropdown-item-text .fw-bold');
+            if (profileMenuName) profileMenuName.innerText = data.full_name;
+            
+            btn.innerHTML = `<i class="fas fa-check"></i> Saved`;
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 2000);
+            
+        } else {
+            alert("Failed to update profile: " + data.error);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error(e);
+        alert("An error occurred while saving profile.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}

@@ -12,6 +12,7 @@ class User(db.Model):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.Text, nullable=False)
+    profile_photo = db.Column(db.Text, nullable=True) # Base64 encoded image
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationship to profile

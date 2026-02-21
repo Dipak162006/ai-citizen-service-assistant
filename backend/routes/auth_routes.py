@@ -57,3 +57,28 @@ def check_auth():
     if 'user_id' in session:
         return jsonify({"authenticated": True, "user": session['user_name']}), 200
     return jsonify({"authenticated": False}), 401
+
+@auth_bp.route('/api/user/profile', methods=['PUT'])
+def update_profile():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.json
+    user = User.query.get(session['user_id'])
+    
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+        
+    if 'full_name' in data:
+        user.full_name = data['full_name']
+        session['user_name'] = user.full_name
+        
+    try:
+        db.session.commit()
+        return jsonify({
+            "message": "Profile updated successfully",
+            "full_name": user.full_name
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

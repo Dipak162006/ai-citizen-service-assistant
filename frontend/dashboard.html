@@ -60,29 +60,47 @@
             <div class="text-secondary small fst-italic mt-2 text-center opacity-50">Start chating to get recommendations...</div>
         </div>
 
-        <!-- Bottom Controls -->
-        <div class="mt-auto pt-3 border-top border-secondary border-opacity-10 sidebar-text">
-            <div class="dropdown w-100">
-                <button class="btn lang-dropdown-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-globe me-2"></i> <span class="sidebar-text-inline">Language</span>
+        <!-- Bottom Controls: ChatGPT-style Profile -->
+        <div class="mt-auto pt-2 sidebar-profile-container">
+            <div class="dropdown dropup w-100">
+                <button class="btn sidebar-profile-btn dropdown-toggle w-100 d-flex align-items-center justify-content-between border-0 text-start theme-text-primary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <div class="d-flex align-items-center gap-3 overflow-hidden">
+                        <div class="profile-avatar bg-warning text-dark fw-bold rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" id="sidebar-profile-avatar" style="width: 36px; height: 36px; font-size: 0.9rem; overflow: hidden;">
+                            {{ user_name[0] | upper if user_name else 'U' }}
+                        </div>
+                        <div class="profile-info text-truncate">
+                            <div class="fw-semibold text-truncate" style="font-size: 0.9rem;">{{ user_name }}</div>
+                            <div class="text-secondary small text-truncate" style="font-size: 0.75rem;">Go</div>
+                        </div>
+                    </div>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-dark w-100 shadow-lg border-0" id="language-list">
-                    <!-- Languages injected by JS -->
+                <ul class="dropdown-menu dropdown-menu-dark shadow-lg profile-menu theme-border-subtle w-100 mb-2 p-2 theme-bg-card" style="border-radius: 12px;">
+                    <li class="dropdown-item-text theme-text-primary border-bottom theme-border-subtle mb-2 pb-2 px-3">
+                        <div class="fw-bold" style="font-size: 0.95rem;">{{ user_name }}</div>
+                        <small class="theme-text-secondary" style="font-size: 0.8rem;">{{ user_email if user_email else 'user@example.com' }}</small>
+                    </li>
+                    <li><a class="dropdown-item theme-text-primary hover-bg-surface rounded py-2" href="#" onclick="openSettingsModal()"><i class="fas fa-cog fa-fw me-2 theme-text-secondary"></i> Settings</a></li>
+                    <li><a class="dropdown-item theme-text-primary hover-bg-surface rounded py-2" href="#" data-bs-toggle="modal" data-bs-target="#helpModal"><i class="fas fa-question-circle fa-fw me-2 theme-text-secondary"></i> Help & FAQ</a></li>
+                    <li><hr class="dropdown-divider theme-border-subtle my-2"></li>
+                    <li><a class="dropdown-item text-danger hover-bg-surface rounded py-2" href="/logout"><i class="fas fa-sign-out-alt fa-fw me-2"></i> Log out</a></li>
                 </ul>
-            </div>
-             <div class="text-center mt-3">
-                <a href="/logout" class="text-secondary small text-decoration-none hover-white">Sign Out</a>
             </div>
         </div>
     </div>
 
     <!-- Main Content -->
     <div class="main-content">
-        <!-- Minimal Dashboard Header Top Left (Mobile Only) -->
-        <div class="main-header d-md-none">
-            <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
-                <i class="fas fa-bars"></i>
-            </button>
+        <!-- Minimal Dashboard Header -->
+        <div class="main-header w-100 d-flex justify-content-between align-items-center">
+            <!-- Left: Mobile Toggle -->
+            <div>
+                <button class="sidebar-toggle-btn d-md-none" onclick="toggleSidebar()" title="Toggle Sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <!-- Right: Empty space to balance mobile header -->
+            <div></div>
         </div>
 
         <!-- Chat Container -->
@@ -180,6 +198,235 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-md-down">
+        <div class="modal-content theme-text-primary theme-bg-card theme-border-subtle custom-settings-modal shadow-lg" style="border-radius: 16px; overflow: hidden; height: 85vh;">
+            <div class="d-flex flex-column flex-md-row h-100">
+                <!-- Settings Sidebar -->
+                <div class="settings-sidebar p-4 border-end theme-border-subtle theme-bg-secondary" style="width: 280px;">
+                    <h5 class="fw-bold mb-4 ps-2 mt-2">Settings</h5>
+                    <ul class="nav nav-pills flex-column gap-2" id="settings-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active text-start theme-text-primary w-100 p-3 rounded-3 custom-nav-link" id="account-tab" data-bs-toggle="pill" data-bs-target="#account-settings" type="button" role="tab">
+                                <i class="fas fa-user fa-fw me-3 opacity-75"></i> Account
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link text-start theme-text-primary w-100 p-3 rounded-3 custom-nav-link" id="appearance-tab" data-bs-toggle="pill" data-bs-target="#appearance-settings" type="button" role="tab">
+                                <i class="fas fa-paint-brush fa-fw me-3 opacity-75"></i> Appearance
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link text-start theme-text-primary w-100 p-3 rounded-3 custom-nav-link" id="language-tab" data-bs-toggle="pill" data-bs-target="#language-settings" type="button" role="tab">
+                                <i class="fas fa-globe fa-fw me-3 opacity-75"></i> Language
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link text-start theme-text-primary w-100 p-3 rounded-3 custom-nav-link" id="accessibility-tab" data-bs-toggle="pill" data-bs-target="#accessibility-settings" type="button" role="tab">
+                                <i class="fas fa-universal-access fa-fw me-3 opacity-75"></i> Accessibility
+                            </button>
+                        </li>
+                        <li class="nav-item mt-4" role="presentation">
+                            <button class="nav-link text-start theme-text-primary w-100 p-3 rounded-3 custom-nav-link" id="about-tab" data-bs-toggle="pill" data-bs-target="#about-settings" type="button" role="tab">
+                                <i class="fas fa-info-circle fa-fw me-3 opacity-75"></i> About
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Settings Content -->
+                <div class="settings-content flex-grow-1 p-4 p-md-5 position-relative" style="overflow-y: auto;">
+                    <button type="button" class="btn-close theme-btn-close position-absolute top-0 end-0 m-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                    
+                    <div class="tab-content h-100" id="settings-tabContent">
+                        <!-- Account Settings -->
+                        <div class="tab-pane fade show active" id="account-settings" role="tabpanel">
+                            <h4 class="fw-bold mb-4 pb-3 border-bottom theme-border-subtle">Account</h4>
+                            <div class="mb-4 max-w-lg">
+                                <label class="theme-text-secondary small fw-bold mb-2">EMAIL ADDRESS</label>
+                                <div class="d-flex justify-content-between align-items-center theme-bg-surface p-3 rounded-3 border theme-border-subtle">
+                                    <span class="theme-text-primary">{{ user_email if user_email else 'user@example.com' }}</span>
+                                </div>
+                            </div>
+                            <div class="mb-4 max-w-lg">
+                                <label class="theme-text-secondary small fw-bold mb-2">FULL NAME</label>
+                                <div class="d-flex gap-2">
+                                    <input type="text" class="form-control theme-input p-3 rounded-3" id="setting-name" value="{{ user_name }}">
+                                    <button class="btn btn-outline-success px-4 rounded-3" onclick="saveProfileSettings()" id="save-profile-btn">Save</button>
+                                </div>
+                            </div>
+                            <div class="mb-4 max-w-lg">
+                                <label class="theme-text-secondary small fw-bold mb-2">SECURITY</label>
+                                <div>
+                                    <button class="btn btn-outline-danger w-100 text-start p-3 rounded-3" onclick="alert('Password reset link sent to {{ user_email }}')"><i class="fas fa-key me-2"></i> Change Password</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Appearance Settings -->
+                        <div class="tab-pane fade" id="appearance-settings" role="tabpanel">
+                            <h4 class="fw-bold mb-4 pb-3 border-bottom theme-border-subtle">Appearance</h4>
+                            <div class="mb-5 max-w-lg">
+                                <label class="theme-text-secondary small fw-bold mb-3">THEME</label>
+                                <div class="d-flex gap-3">
+                                    <div class="form-check theme-card p-4 border theme-border-subtle rounded-3 flex-fill cursor-pointer position-relative overflow-hidden theme-bg-surface" onclick="document.getElementById('theme-dark').click()">
+                                        <input class="form-check-input ms-0 me-2 mt-0 position-absolute" style="top: 1rem; right: 1rem;" type="radio" name="themeOptions" id="theme-dark" value="dark" checked onchange="updatePreference('theme', 'dark')">
+                                        <div class="fw-bold mb-1 theme-text-primary">Dark Mode</div>
+                                        <small class="theme-text-secondary">Default comfort layout.</small>
+                                    </div>
+                                    <div class="form-check theme-card p-4 border theme-border-subtle rounded-3 flex-fill cursor-pointer position-relative overflow-hidden theme-bg-surface" onclick="document.getElementById('theme-light').click()">
+                                        <input class="form-check-input ms-0 me-2 mt-0 position-absolute" style="top: 1rem; right: 1rem;" type="radio" name="themeOptions" id="theme-light" value="light" onchange="updatePreference('theme', 'light')">
+                                        <div class="fw-bold mb-1 theme-text-primary">Light Mode</div>
+                                        <small class="theme-text-secondary">High contrast brightness.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-4 max-w-lg">
+                                <label class="theme-text-secondary small fw-bold mb-2">CHAT TEXT SIZE</label>
+                                <select class="form-select theme-input p-3 rounded-3" id="setting-textsize" onchange="updatePreference('textSize', this.value)">
+                                    <option value="small">Small</option>
+                                    <option value="medium" selected>Medium (Default)</option>
+                                    <option value="large">Large</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Language Settings -->
+                        <div class="tab-pane fade" id="language-settings" role="tabpanel">
+                            <h4 class="fw-bold mb-4 pb-3 border-bottom theme-border-subtle">Language Strategy</h4>
+                            <p class="theme-text-secondary mb-4 max-w-lg" style="line-height: 1.6;">Select your preferred language. AI responses and text-to-speech engine modules will adapt their dialect dynamically to match your selection.</p>
+                            
+                            <div class="max-w-lg theme-bg-surface p-4 rounded-3 border theme-border-subtle">
+                                <label class="theme-text-secondary small fw-bold mb-3">PRIMARY LANGUAGE</label>
+                                <select class="form-select theme-input p-3 fs-5" id="setting-language-select" onchange="changeLanguageFromSettings(this.value)">
+                                    <!-- Injected by JS -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Accessibility Settings -->
+                        <div class="tab-pane fade" id="accessibility-settings" role="tabpanel">
+                            <h4 class="fw-bold mb-4 pb-3 border-bottom theme-border-subtle">Accessibility</h4>
+                            <div class="max-w-lg">
+                                <div class="d-flex justify-content-between align-items-center mb-3 p-4 border theme-border-subtle rounded-3 theme-bg-surface">
+                                    <div>
+                                        <div class="theme-text-primary fw-bold fs-5 mb-1">Auto Voice Read</div>
+                                        <div class="theme-text-secondary small">Automatically turn on Text-to-Speech when the AI responds.</div>
+                                    </div>
+                                    <div class="form-check form-switch ms-3">
+                                        <input class="form-check-input fs-3 cursor-pointer" type="checkbox" id="setting-autotts" onchange="updatePreference('autoTts', this.checked)">
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3 p-4 border theme-border-subtle rounded-3 theme-bg-surface">
+                                    <div>
+                                        <div class="theme-text-primary fw-bold fs-5 mb-1">High Contrast Text</div>
+                                        <div class="theme-text-secondary small">Forces maximum contrast text coloring across the entire UI.</div>
+                                    </div>
+                                    <div class="form-check form-switch ms-3">
+                                        <input class="form-check-input fs-3 cursor-pointer" type="checkbox" id="setting-highcontrast" onchange="updatePreference('highContrast', this.checked)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- About Settings -->
+                        <div class="tab-pane fade" id="about-settings" role="tabpanel">
+                            <h4 class="fw-bold mb-4 pb-3 border-bottom theme-border-subtle">About & Support</h4>
+                            <div class="text-center my-5 py-4 theme-bg-surface rounded-3 border theme-border-subtle max-w-lg mx-auto">
+                                <i class="fas fa-robot text-success mb-3" style="font-size: 4rem;"></i>
+                                <h4 class="theme-text-primary fw-bold">AI Citizen Assistant</h4>
+                                <p class="theme-text-secondary mb-3">Version 1.2.0 (Premium Build)</p>
+                                <div class="d-flex justify-content-center gap-3 mt-4">
+                                    <a href="#" class="btn btn-sm btn-outline-secondary px-3">Terms of Service</a>
+                                    <a href="#" class="btn btn-sm btn-outline-secondary px-3">Privacy Policy</a>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help & FAQ Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content theme-text-primary theme-bg-card theme-border-subtle shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom theme-border-subtle p-4">
+                <h5 class="modal-title fw-bold" id="helpModalLabel"><i class="fas fa-question-circle me-2 text-success"></i> Help & FAQ</h5>
+                <button type="button" class="btn-close theme-btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 p-md-5">
+                <h6 class="fw-bold mb-4 theme-text-secondary">FREQUENTLY ASKED QUESTIONS</h6>
+                
+                <div class="accordion accordion-flush" id="faqAccordion">
+                    <div class="accordion-item theme-bg-card border-bottom theme-border-subtle">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed theme-bg-card theme-text-primary fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                How do I find the right scheme for me?
+                            </button>
+                        </h2>
+                        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body theme-text-secondary small">
+                                The easiest way is to type your query directly into the chat (e.g., "I am a female student looking for a scholarship"). The AI agent will match your query against all live government schemes and display matching cards intelligently within your chat feed!
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item theme-bg-card border-bottom theme-border-subtle">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed theme-bg-card theme-text-primary fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                Can I use the app in my regional language?
+                            </button>
+                        </h2>
+                        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body theme-text-secondary small">
+                                Yes! Open the "Settings" menu from your profile button in the bottom left. Under "Language", you can pick from dozens of regional and global languages. The AI chat engine and voice modules will adapt entirely.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item theme-bg-card border-bottom theme-border-subtle">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed theme-bg-card theme-text-primary fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                Why is the AI Voice not speaking?
+                            </button>
+                        </h2>
+                        <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body theme-text-secondary small">
+                                Ensure that "Auto Voice Read" is enabled in your Settings > Accessibility menu. Make sure your device volume is turned on.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item theme-bg-card border-bottom theme-border-subtle">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed theme-bg-card theme-text-primary fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                                How do I update my account information?
+                            </button>
+                        </h2>
+                        <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body theme-text-secondary small">
+                                You can change your name and profile picture by clicking your profile dropdown in the bottom left, opening "Settings" and editing the fields under the default "Account" tab.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-5 p-4 theme-bg-surface rounded-3 border theme-border-subtle text-center">
+                    <i class="fas fa-envelope-open-text text-secondary fs-3 mb-3"></i>
+                    <h6 class="fw-bold theme-text-primary">Still need help?</h6>
+                    <p class="theme-text-secondary small mb-3">Our support staff is ready to assist you regarding scheme enrollments or app functionality.</p>
+                    <button class="btn btn-outline-success px-4 rounded-pill btn-sm">Contact Support</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

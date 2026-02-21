@@ -38,13 +38,13 @@ def get_recommendations():
     # Find Eligible Schemes (Hybrid: Profile + Intent)
     eligible_schemes = find_eligible_schemes(profile_dict, intent_category=intent_category)
 
-    fallback = False
+    mode = "filtered"
     if not eligible_schemes:
-        fallback = True
+        mode = "fallback"
         all_schemes = Scheme.query.order_by(Scheme.created_at.desc()).all()
         eligible_schemes = [s.to_dict() for s in all_schemes]
         for s in eligible_schemes:
             s['eligibility_status'] = 'Check Details'
 
-    # Return ALL matched schemes with fallback flag
-    return jsonify({"schemes": eligible_schemes, "fallback": fallback}), 200
+    # Return ALL matched schemes with mode flag
+    return jsonify({"schemes": eligible_schemes, "mode": mode}), 200
