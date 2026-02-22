@@ -11,7 +11,9 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
-    password_hash = db.Column(db.Text, nullable=False)
+    password_hash = db.Column(db.Text, nullable=True) # Nullable for Google OAuth users
+    oauth_provider = db.Column(db.String(50), nullable=True) # e.g., 'google'
+    oauth_id = db.Column(db.String(255), nullable=True, unique=True)
     profile_photo = db.Column(db.Text, nullable=True) # Base64 encoded image
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

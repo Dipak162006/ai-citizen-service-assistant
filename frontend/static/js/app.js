@@ -527,6 +527,19 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = headerMessage + cardsHTML;
     };
 
+    // Fetch All Schemes (Default State)
+    const fetchAllSchemes = async () => {
+        try {
+            const res = await fetch('/api/schemes/all');
+            const data = await res.json();
+            recommendationState.schemes = data.schemes || [];
+            recommendationState.mode = 'default';
+            renderSchemes();
+        } catch (e) {
+            console.error("Error fetching all schemes:", e);
+        }
+    };
+
     // Fetch Recommendations
     const fetchRecommendations = async () => {
         try {
@@ -625,7 +638,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (label) label.textContent = currentLanguage;
     }
 
-    fetchRecommendations();
+    // Initial Load: Show all schemes as default
+    fetchAllSchemes();
     
     // 6. Close Modal
     const modalEl = document.getElementById('newChatModal');
@@ -949,8 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Refresh recommendations (reset state strictly to default right away)
         recommendationState.mode = 'default';
-        renderSchemes();
-        // optionally fetch new defaults immediately if needed: fetchRecommendations();
+        fetchAllSchemes();
     };
 
     // --- Voice Input (Speech-to-Text) ---

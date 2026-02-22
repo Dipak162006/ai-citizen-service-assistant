@@ -4,6 +4,12 @@ from services.scheme_service import find_eligible_schemes
 
 recommendation_bp = Blueprint('recommendation', __name__)
 
+@recommendation_bp.route('/api/schemes/all', methods=['GET'])
+def get_all_schemes():
+    schemes = Scheme.query.order_by(Scheme.created_at.desc()).all()
+    return jsonify({"schemes": [s.to_dict() for s in schemes], "mode": "default"}), 200
+
+
 @recommendation_bp.route('/api/recommendations', methods=['GET'])
 def get_recommendations():
     if 'user_id' not in session:

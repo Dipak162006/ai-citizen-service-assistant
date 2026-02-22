@@ -10,15 +10,18 @@ db.init_app(app)
 
 with app.app_context():
     try:
-        # Check if column exists
-        result = db.session.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='profile_photo';"))
+        # Check if oauth_provider column exists
+        result = db.session.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='oauth_provider';"))
         row = result.fetchone()
         if not row:
-            db.session.execute(text("ALTER TABLE users ADD COLUMN profile_photo TEXT;"))
+            db.session.execute(text("ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(50);"))
+            db.session.execute(text("ALTER TABLE users ADD COLUMN oauth_id VARCHAR(255);"))
+            db.session.execute(text("ALTER TABLE users ADD CONSTRAINT unique_oauth_id UNIQUE (oauth_id);"))
+            db.session.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;"))
             db.session.commit()
-            print("Successfully added profile_photo to users table.")
+            print("Successfully migrated users table for OAuth.")
         else:
-            print("Column profile_photo already exists.")
+            print("OAuth columns already exist.")
     except Exception as e:
         print(f"Error executing migration: {e}")
         db.session.rollback()

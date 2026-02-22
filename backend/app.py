@@ -24,11 +24,13 @@ def create_app():
     from routes.auth_routes import auth_bp
     from routes.recommendation_routes import recommendation_bp
     from routes.eligibility_routes import eligibility_bp
+    from routes.oauth_routes import google_bp
 
     app.register_blueprint(chat_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(recommendation_bp)
     app.register_blueprint(eligibility_bp)
+    app.register_blueprint(google_bp)
 
     @app.route('/')
     def index():
@@ -49,11 +51,13 @@ def create_app():
         if 'user_id' not in session:
             return redirect('/login')
         
-        # Pass user_name to template, default to 'User'
-        user_name = session.get('user_name', 'User')
+        # Pass user_name and user_email to template
+        from models import User, Scheme
+        user = User.query.get(session['user_id'])
+        user_name = user.full_name if user else session.get('user_name', 'User')
+        user_email = user.email if user else 'user@example.com'
         
         # Fetch Dynamic Categories
-        from models import Scheme
         categories = db.session.query(Scheme.category).distinct().all()
         category_list = sorted([c[0] for c in categories if c[0]])
         
@@ -71,7 +75,7 @@ def create_app():
             return 'fa-hand-holding-heart'
 
         from flask import render_template
-        return render_template('dashboard.html', user_name=user_name, categories=category_list, get_icon=get_category_icon)
+        return render_template('dashboard.html', user_name=user_name, user_email=user_email, categories=category_list, get_icon=get_category_icon)
 
     @app.route('/<path:path>')
     def serve_static_files(path):
