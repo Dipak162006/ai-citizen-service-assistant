@@ -242,11 +242,22 @@ body.theme-light .blob-2 {
 
 /* Recommendation List in Sidebar (Mini Cards) */
 .rec-list-container {
-    overflow-y: auto;
-    flex-grow: 1;
-    padding-right: 5px;
-    margin-top: 10px;
+    padding-right: 8px;
+    margin-top: 5px;
 }
+
+
+.rec-list-container::-webkit-scrollbar,
+.session-list-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.rec-list-container::-webkit-scrollbar-thumb,
+.session-list-container::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 10px;
+}
+
 
 .sidebar-rec-card {
     background-color: var(--bg-card);
@@ -935,8 +946,9 @@ body.theme-light .blob-2 {
     padding: 1.5rem;
     height: 100vh;
     flex-shrink: 0; /* Prevent sidebar shrink */
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden; /* No global scroll - scroll moved to accordion */
+    display: flex;
+    flex-direction: column;
     transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), padding 0.3s ease;
     z-index: 1050;
     position: relative;
@@ -1270,9 +1282,11 @@ body.theme-light .blob-2 {
 
 /* Profile Dropdown Customization (Sidebar Bottom) */
 .sidebar-profile-container {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
     margin-top: auto;
-    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-subtle);
+    background-color: var(--bg-primary); /* Ensure it covers anything behind if needed */
+    z-index: 10;
 }
 
 .sidebar-profile-btn {
@@ -1450,3 +1464,266 @@ body.theme-light .nav-link.active {
 body.theme-light .theme-btn-close {
     filter: invert(0) grayscale(100%) brightness(0%);
 }
+
+/* Compare Feature Styles */
+.Floating-compare-btn {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    z-index: 1000;
+    border-radius: 50px;
+    padding: 12px 24px;
+    background-color: var(--accent-primary);
+    border: none;
+    box-shadow: 0 5px 15px var(--accent-glow);
+    transition: transform 0.3s ease, background-color 0.2s;
+}
+
+.Floating-compare-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    background-color: var(--accent-hover);
+}
+
+.compare-checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.compare-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent-primary);
+}
+
+/* Compare Modal Table Styling */
+.theme-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    color: var(--text-primary);
+    --bs-table-bg: transparent !important;
+    --bs-table-color: var(--text-primary) !important;
+}
+
+.theme-table th,
+.theme-table td {
+    padding: 16px !important;
+    border-bottom: 1px solid var(--border-subtle);
+    background-color: transparent !important;
+}
+
+.theme-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.theme-table tbody tr:nth-of-type(odd) td {
+    background-color: var(--bg-surface) !important;
+}
+
+.theme-table tbody tr:hover td {
+    background-color: var(--accent-glow) !important;
+}
+
+.highlight-better {
+    background-color: rgba(0, 230, 118, 0.05);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.session-item {
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.session-item:hover {
+    background-color: var(--bg-surface);
+    border-color: var(--border-subtle);
+}
+
+.session-item.active {
+    background-color: var(--accent-glow);
+    border-color: var(--accent-primary);
+}
+
+.session-item.active .theme-text-primary {
+    color: var(--accent-primary) !important;
+    font-weight: 600;
+}
+
+.hover-opacity-100:hover {
+    opacity: 1 !important;
+}
+
+/* Sidebar Accordion Styles */
+.sidebar-accordion {
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    margin-bottom: 1rem;
+}
+
+.sidebar-accordion .accordion-button {
+    font-size: 0.75rem;
+    padding-top: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid transparent;
+}
+
+
+.sidebar-accordion .accordion-button {
+    color: var(--text-secondary) !important;
+}
+
+.sidebar-accordion .accordion-button:not(.collapsed) .sidebar-text {
+    color: var(--accent-primary) !important;
+}
+
+.sidebar-accordion .accordion-button:not(.collapsed) {
+    background-color: transparent !important;
+}
+
+
+.sidebar-accordion .accordion-button::after {
+    background-size: 0.8rem;
+    filter: brightness(0.5);
+    transition: transform 0.2s ease;
+}
+
+body.theme-light .sidebar-accordion .accordion-button::after {
+    filter: brightness(0.2);
+}
+
+.sidebar-accordion .accordion-button:focus {
+    box-shadow: none;
+}
+
+.sidebar-accordion .accordion-item {
+    background-color: transparent !important;
+}
+
+.sidebar-accordion .accordion-body {
+    transition: all 0.3s ease;
+}
+
+/* Hide accordion text in collapsed sidebar */
+
+.sidebar-collapsed .sidebar-accordion .sidebar-text,
+.sidebar-collapsed .sidebar-accordion .accordion-button::after {
+    display: none !important;
+}
+
+.sidebar-collapsed .sidebar-accordion .accordion-button {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.sidebar-collapsed .sidebar-accordion i,
+.sidebar-toggle-btn i {
+    color: var(--text-secondary) !important;
+    font-size: 1.1rem;
+    margin-right: 0 !important;
+}
+
+
+.sidebar-collapsed .accordion-collapse {
+    display: none !important;
+}
+
+/* --- Animated AI Logo --- */
+.ai-logo-container {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.ai-logo-container:hover {
+    transform: scale(1.1);
+}
+
+.ai-logo-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Outer Rotating Ring */
+.ai-logo-outer-ring {
+    fill: none;
+    stroke: var(--accent-primary);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-dasharray: 4, 10;
+    transform-origin: center;
+    animation: ai-logo-rotate 8s linear infinite;
+    opacity: 0.6;
+}
+
+/* Inner Pulsing Glow */
+.ai-logo-glow {
+    fill: var(--accent-primary);
+    opacity: 0.15;
+    filter: blur(4px);
+    animation: ai-logo-pulse 2s ease-in-out infinite;
+    transform-origin: center;
+}
+
+/* Responsive Path */
+.ai-robot-path {
+    fill: var(--accent-primary);
+    transition: fill 0.3s ease;
+}
+
+/* Active State (Processing) */
+.ai-logo-container.processing .ai-logo-glow {
+    opacity: 0.4;
+    animation: ai-logo-pulse 0.8s ease-in-out infinite;
+    fill: var(--accent-green, #00E676);
+}
+
+.ai-logo-container.processing .ai-robot-path {
+    fill: var(--accent-green, #00E676);
+}
+
+.ai-logo-container.processing .ai-logo-outer-ring {
+    stroke: var(--accent-green, #00E676);
+    animation: ai-logo-rotate 2s linear infinite;
+    opacity: 1;
+}
+
+/* Animation Keyframes */
+@keyframes ai-logo-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes ai-logo-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.15; }
+    50% { transform: scale(1.15); opacity: 0.25; }
+}
+
+/* Theme Adaptations */
+body.theme-light .ai-logo-glow {
+    opacity: 0.2;
+}
+
+body.theme-light .ai-logo-outer-ring {
+    opacity: 0.4;
+    stroke-width: 2;
+}
+/* --- End Animated AI Logo --- */
+
+

@@ -65,6 +65,8 @@ class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     session_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    title = db.Column(db.String(255), nullable=True)
     profile_data = db.Column(JSONB, default={})
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

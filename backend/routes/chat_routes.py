@@ -26,14 +26,31 @@ def chat():
     if session_id:
         db_user_session = UserSession.query.get(session_id)
     else:
-        db_user_session = UserSession(session_id=uuid.uuid4())
+        # Create new session and associate with user if logged in
+        new_sid = uuid.uuid4()
+        db_user_session = UserSession(session_id=new_sid)
+        if 'user_id' in session:
+            db_user_session.user_id = session['user_id']
         db.session.add(db_user_session)
         db.session.commit()
     
     # Check if session exists (if invalid ID passed)
     if not db_user_session:
-        db_user_session = UserSession(session_id=uuid.uuid4())
+        new_sid = uuid.uuid4()
+        db_user_session = UserSession(session_id=new_sid)
+        if 'user_id' in session:
+            db_user_session.user_id = session['user_id']
         db.session.add(db_user_session)
+        db.session.commit()
+
+    # Auto-generate title for new sessions (if no title exists yet)
+    if not db_user_session.title:
+        # Take first 5-7 words from user message as a title
+        words = user_message.split()
+        title_text = " ".join(words[:6])
+        if len(words) > 6:
+            title_text += "..."
+        db_user_session.title = title_text
         db.session.commit()
 
     # Update session profile with detected language if passed
@@ -285,3 +302,79 @@ def change_language():
     except Exception as e:
         print(f"Error changing language: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
+
+@chat_bp.route('/api/sessions', methods=['GET'])
+def get_sessions():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    user_id = session['user_id']
+    sessions = UserSession.query.filter_by(user_id=user_id).order_by(UserSession.created_at.desc()).all()
+    
+    session_list = []
+    for s in sessions:
+        session_list.append({
+            "id": str(s.session_id),
+            "title": s.title or "Untitled Conversation",
+            "created_at": s.created_at.strftime("%Y-%m-%d %H:%M")
+        })
+    
+    return jsonify({"sessions": session_list})
+
+@chat_bp.route('/api/sessions/<session_id>', methods=['GET'])
+def get_session_details(session_id):
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        user_sess = UserSession.query.get(session_id)
+        if not user_sess or user_sess.user_id != session['user_id']:
+            return jsonify({"error": "Session not found"}), 404
+            
+        messages = ChatMessage.query.filter_by(session_id=session_id).order_by(ChatMessage.timestamp).all()
+        msg_list = [{"role": m.role, "content": m.content, "timestamp": m.timestamp} for m in messages]
+        
+        return jsonify({
+            "session_id": str(user_sess.session_id),
+            "title": user_sess.title,
+            "messages": msg_list,
+            "profile": user_sess.profile_data
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@chat_bp.route('/api/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        user_sess = UserSession.query.get(session_id)
+        if not user_sess or user_sess.user_id != session['user_id']:
+            return jsonify({"error": "Session not found"}), 404
+            
+        # Delete related messages first (optional if cascade is set, but explicit is safer)
+        ChatMessage.query.filter_by(session_id=session_id).delete()
+        db.session.delete(user_sess)
+        db.session.commit()
+        
+        return jsonify({"status": "success", "message": "Conversation deleted"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@chat_bp.route('/api/sessions/new', methods=['POST'])
+def start_new_session_api():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    new_sid = uuid.uuid4()
+    new_sess = UserSession(session_id=new_sid, user_id=session['user_id'])
+    db.session.add(new_sess)
+    db.session.commit()
+    
+    return jsonify({
+        "status": "success", 
+        "session_id": str(new_sid),
+        "message": "New conversation started"
+    })

@@ -99,6 +99,137 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- Session History Logic ---
+    window.loadSessions = async () => {
+        const historyBox = document.getElementById('session-history-box');
+        if (!historyBox) return;
+
+        try {
+            const res = await fetch('/api/sessions');
+            const data = await res.json();
+            
+            if (data.sessions && data.sessions.length > 0) {
+                const sessionsHtml = data.sessions.map(s => `
+                    <div class="session-item d-flex align-items-center justify-content-between p-2 rounded mb-1 ${sessionId === s.id ? 'active' : ''}" 
+                         onclick="loadSessionContent('${s.id}')" style="cursor: pointer;">
+                        <div class="d-flex align-items-center gap-2 overflow-hidden">
+                            <i class="fas fa-comment-dots theme-text-secondary" style="font-size: 0.85rem;"></i>
+                            <span class="text-truncate small theme-text-primary" style="max-width: 150px;">${s.title}</span>
+                        </div>
+                        <button class="btn btn-link btn-sm p-0 text-danger opacity-50 hover-opacity-100 delete-session-btn" 
+                                onclick="event.stopPropagation(); deleteSession('${s.id}')">
+                            <i class="fas fa-trash-alt" style="font-size: 0.7rem;"></i>
+                        </button>
+                    </div>
+                `).join('');
+                historyBox.innerHTML = sessionsHtml;
+            } else {
+                historyBox.innerHTML = '<div class="text-secondary small fst-italic py-2 text-center opacity-50">No recent history...</div>';
+            }
+        } catch (e) {
+            console.error("Failed to load sessions:", e);
+        }
+    };
+
+    window.loadSessionContent = async (id) => {
+        if (id === sessionId) return;
+
+        // Show loading state in chat
+        chatBox.innerHTML = '<div class="text-center py-5 opacity-50"><i class="fas fa-spinner fa-spin fa-2x mb-3"></i><p>Loading conversation...</p></div>';
+        
+        try {
+            const res = await fetch(`/api/sessions/${id}`);
+            const data = await res.json();
+            
+            if (data.messages) {
+                sessionId = data.session_id;
+                localStorage.setItem('chat_session_id', sessionId);
+                
+                // Clear and Render
+                chatBox.innerHTML = '';
+                data.messages.forEach(msg => {
+                    if (msg.role === 'user') renderUserMessage(msg.content);
+                    else renderAssistantMessage(msg.content);
+                });
+                
+                // Load profile context
+                if (data.profile) {
+                    updateProfileGlobals(data.profile);
+                    fetchRecommendations();
+                }
+
+                // Refresh history UI highlight
+                loadSessions();
+                
+                // UX: Ensure History section is expanded
+                const historyCollapse = document.getElementById('collapseHistory');
+                if (historyCollapse && !historyCollapse.classList.contains('show')) {
+                    const bsCollapse = new bootstrap.Collapse(historyCollapse, { toggle: false });
+                    bsCollapse.show();
+                }
+
+                scrollToBottom();
+            }
+        } catch (e) {
+            console.error("Failed to load session content:", e);
+            chatBox.innerHTML = '<div class="text-danger text-center py-5">Failed to load conversation.</div>';
+        }
+    };
+
+    window.deleteSession = async (id) => {
+        if (!confirm("Are you sure you want to delete this conversation?")) return;
+        
+        try {
+            const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                if (id === sessionId) {
+                    startNewChat();
+                } else {
+                    loadSessions();
+                }
+            }
+        } catch (e) {
+            console.error("Delete failed:", e);
+        }
+    };
+
+    window.startNewChat = async () => {
+        try {
+            const res = await fetch('/api/sessions/new', { method: 'POST' });
+            const data = await res.json();
+            if (data.session_id) {
+                sessionId = data.session_id;
+                localStorage.setItem('chat_session_id', sessionId);
+                
+                // Reset UI
+                chatBox.innerHTML = '<div class="text-secondary small fst-italic mt-2 text-center opacity-50">New session started...</div>';
+                if(profileDisplay) profileDisplay.textContent = 'None yet';
+                
+                // Reset Profile State
+                window.userProfile = {
+                    occupation: '',
+                    income_range: '',
+                    state: '',
+                    age: ''
+                };
+                
+                loadSessions();
+                
+                // UX: Ensure History section is expanded
+                const historyCollapse = document.getElementById('collapseHistory');
+                if (historyCollapse && !historyCollapse.classList.contains('show')) {
+                    const bsCollapse = new bootstrap.Collapse(historyCollapse, { toggle: false });
+                    bsCollapse.show();
+                }
+
+                fetchRecommendations();
+            }
+        } catch (e) {
+            console.error("Failed to start new chat:", e);
+        }
+    };
+
+
     // Scroll to bottom
     const scrollToBottom = () => {
         chatBox.scrollTop = chatBox.scrollHeight;
@@ -468,15 +599,189 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 renderAssistantMessage(data.response);
             }
-        } catch (e) {
-            console.error(e);
+        } catch (err) {
+            console.error(err);
             if(document.getElementById('typing')) document.getElementById('typing').remove();
-            renderAssistantMessage("Sorry, I couldn't fetch details for that scheme right now.");
+            toggleLogoProcessing(false);
+            renderAssistantMessage("Sorry, I encountered an error. Please try again.");
         }
     };
 
     // Store schemes globally for search filtering
-    let recommendationState = { mode: 'default', schemes: [] };
+    let recommendationState = { mode: 'default', schemes: [], allSchemes: [] };
+    
+    // Compare Feature State
+    window.selectedSchemesForComparison = [];
+
+    window.toggleCategorySchemeComparison = (schemeId, checkboxElem) => {
+        if (checkboxElem.checked) {
+            if (window.selectedSchemesForComparison.length >= 2) {
+                alert("You can only compare a maximum of 2 schemes at a time.");
+                checkboxElem.checked = false;
+                return;
+            }
+            if (!window.selectedSchemesForComparison.includes(schemeId)) {
+                window.selectedSchemesForComparison.push(schemeId);
+            }
+        } else {
+            window.selectedSchemesForComparison = window.selectedSchemesForComparison.filter(id => id !== schemeId);
+        }
+        
+        const btn = document.getElementById('modal-compare-action-btn');
+        if (btn) {
+            if (window.selectedSchemesForComparison.length === 2) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+            }
+        }
+    };
+
+    window.openCompareModal = async () => {
+        // Reset selections and UI state locally
+        window.selectedSchemesForComparison = [];
+        
+        const actionBtn = document.getElementById('modal-compare-action-btn');
+        if(actionBtn) actionBtn.disabled = true;
+        
+        document.getElementById('compare-category-select').innerHTML = '<option value="" selected disabled>Loading categories...</option>';
+        document.getElementById('compare-modal-checkboxes').innerHTML = '<div class="text-secondary small fst-italic py-2 text-center opacity-75">Please choose a category above to view schemes.</div>';
+        
+        window.showCompareSelectionScreen();
+        
+        const modal = new bootstrap.Modal(document.getElementById('compareModal'));
+        modal.show();
+
+        try {
+            // Fetch all schemes
+            const res = await fetch('/api/schemes/all');
+            const data = await res.json();
+            const schemes = data.schemes || [];
+            
+            // Extract distinct categories
+            const categories = [...new Set(schemes.map(s => s.category).filter(c => c))].sort();
+            
+            const selectHTML = ['<option value="" selected disabled>Select a category</option>']
+                .concat(categories.map(c => `<option value="${c}">${c}</option>`)).join('');
+                
+            document.getElementById('compare-category-select').innerHTML = selectHTML;
+            
+            // Store fetched schemes to avoid re-fetching on change
+            window._allModalSchemes = schemes;
+            
+        } catch(e) {
+            console.error("Failed to fetch schemes for compare modal:", e);
+            document.getElementById('compare-category-select').innerHTML = '<option value="" selected disabled>Error loading categories.</option>';
+        }
+    };
+    
+    window.renderCompareCategorySchemes = () => {
+        const select = document.getElementById('compare-category-select');
+        const cat = select.value;
+        const container = document.getElementById('compare-modal-checkboxes');
+        
+        if (!cat || !window._allModalSchemes) {
+            container.innerHTML = '<div class="text-secondary small fst-italic py-2 text-center opacity-75">Please select a category above.</div>';
+            return;
+        }
+        
+        // Filter schemes by category and render checkboxes
+        const filtered = window._allModalSchemes.filter(s => s.category === cat);
+        
+        window.selectedSchemesForComparison = []; // reset selected when switching category
+        const actionBtn = document.getElementById('modal-compare-action-btn');
+        if(actionBtn) actionBtn.disabled = true;
+        
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="text-secondary small fst-italic py-2 text-center opacity-75">No schemes found for this category.</div>';
+            return;
+        }
+
+        const boxesHTML = filtered.map(s => {
+            return `
+                <div class="d-flex align-items-center justify-content-between p-3 border rounded-3 theme-border-subtle theme-bg-surface">
+                    <div>
+                        <div class="fw-bold theme-text-primary small mb-1">${s.name}</div>
+                        <div class="text-secondary opacity-75" style="font-size: 0.70rem; line-height: 1.2;">
+                            ${s.description ? s.description.substring(0, 80) + '...' : 'No description.'}
+                        </div>
+                    </div>
+                    <div class="form-check form-switch ms-3">
+                        <input class="form-check-input flex-shrink-0" type="checkbox" id="modal-compare-chk-${s.id}" 
+                            onchange="toggleCategorySchemeComparison(${s.id}, this)" style="cursor: pointer;">
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = boxesHTML;
+    };
+    
+    window.showCompareSelectionScreen = () => {
+        document.getElementById('compare-selection-screen').classList.remove('d-none');
+        document.getElementById('compare-content').classList.add('d-none');
+        document.getElementById('modal-compare-back-btn').classList.add('d-none');
+        document.getElementById('modal-compare-action-btn').classList.remove('d-none');
+    };
+
+    window.compareSelectedSchemes = async () => {
+        if (window.selectedSchemesForComparison.length !== 2) return;
+        
+        const loading = document.getElementById('compare-loading');
+        const content = document.getElementById('compare-content');
+        const tBody = document.getElementById('compare-table-body');
+        const selectionScreen = document.getElementById('compare-selection-screen');
+        const backBtn = document.getElementById('modal-compare-back-btn');
+        const actionBtn = document.getElementById('modal-compare-action-btn');
+        
+        if (selectionScreen) selectionScreen.classList.add('d-none');
+        if (actionBtn) actionBtn.classList.add('d-none');
+        
+        loading.classList.remove('d-none');
+        content.classList.add('d-none');
+        
+        try {
+            const res = await fetch('/api/schemes/compare', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheme_ids: window.selectedSchemesForComparison })
+            });
+            const data = await res.json();
+            
+            if (data.comparison) {
+                const cmp = data.comparison;
+                
+                document.getElementById('compare-scheme-1-title').textContent = cmp["Name"][0];
+                document.getElementById('compare-scheme-2-title').textContent = cmp["Name"][1];
+                
+                let rowsHtml = '';
+                const features = ["Category", "Benefit Summary", "Target Age", "Income Limit", "Occupation", "State"];
+                
+                features.forEach(feature => {
+                    const val1 = cmp[feature][0] || "N/A";
+                    const val2 = cmp[feature][1] || "N/A";
+                    
+                    rowsHtml += `
+                        <tr>
+                            <td class="fw-bold theme-text-secondary small">${feature}</td>
+                            <td class="theme-text-primary fs-6">${val1}</td>
+                            <td class="theme-text-primary fs-6">${val2}</td>
+                        </tr>
+                    `;
+                });
+                
+                tBody.innerHTML = rowsHtml;
+            }
+        } catch (e) {
+            console.error(e);
+            tBody.innerHTML = '<tr><td colspan="3" class="text-danger text-center">Failed to load comparison data.</td></tr>';
+        } finally {
+            loading.classList.add('d-none');
+            content.classList.remove('d-none');
+            const backBtn = document.getElementById('modal-compare-back-btn');
+            if(backBtn) backBtn.classList.remove('d-none');
+        }
+    };
 
     const renderSchemes = () => {
         const container = document.getElementById('recommendations-box');
@@ -496,18 +801,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const cardsHTML = schemesUrl.map(s => {
             const isEligible = s.eligibility_status === 'Eligible';
-            const badgeClass = isEligible ? 'rec-card-badge eligible' : 'rec-card-badge';
+            const isPartial = s.eligibility_status === 'Check Criteria';
             
+            let badgeBg = isEligible ? 'rgba(0,230,118,0.1)' : (isPartial ? 'rgba(255,193,7,0.1)' : 'rgba(108,117,125,0.1)');
+            let badgeColor = isEligible ? 'var(--accent-green, #00E676)' : (isPartial ? '#ffc107' : '#6c757d');
+            let badgeText = s.eligibility_status ? s.eligibility_status.toUpperCase() : (isEligible ? 'ELIGIBLE' : 'VIEW');
+            
+            const collapseId = `explain-${s.id || s.name.replace(/[^a-zA-Z0-9]/g, '')}`;
+            
+            let rulesHtml = '';
+            if (s.matched_rules && s.matched_rules.length > 0) {
+                rulesHtml = s.matched_rules.map(r => `
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-check-circle text-success me-2" style="font-size: 0.8rem;"></i>
+                        <span class="theme-text-secondary" style="font-size: 0.75rem;">${r}</span>
+                    </div>
+                `).join('');
+            } else {
+                rulesHtml = '<div class="text-secondary small fst-italic">Review official criteria for details.</div>';
+            }
+
             return `
-                <div class="rec-card-modern" onclick="fetchSchemeDetails('${s.name}')">
+                <div class="rec-card-modern" onclick="fetchSchemeDetails('${s.name}')" style="height: auto; min-height: 220px; padding-bottom: 1rem;">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="theme-text-primary fw-bold" style="font-size: 0.95rem;">${s.name}</div>
-                        <span class="badgex" style="font-size: 0.6rem; background: rgba(0,230,118,0.1); color: var(--accent-green); padding: 2px 6px; border-radius: 4px;">ELIGIBLE</span>
+                        <span class="badgex" style="font-size: 0.6rem; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-left: 8px;">${badgeText}</span>
                     </div>
                     <div class="text-secondary small mb-3" style="font-size: 0.8rem; line-height: 1.4;">
                         ${s.description ? s.description.substring(0, 60) + '...' : 'No description.'}
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
+                    
+                    <div class="mt-auto mb-3">
+                        <a class="text-decoration-none small" style="cursor: pointer; font-size: 0.75rem; font-weight: 600; color: var(--accent-primary);" data-bs-toggle="collapse" data-bs-target="#${collapseId}" onclick="event.stopPropagation()">
+                            Why You're Eligible <i class="fas fa-chevron-down ms-1" style="font-size: 0.7em;"></i>
+                        </a>
+                        <div class="collapse mt-2 pt-2 border-top theme-border-subtle" id="${collapseId}" onclick="event.stopPropagation()">
+                            ${rulesHtml}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
                         <div class="text-secondary" style="font-size: 0.75rem;">
                             <i class="fas ${getCategoryIcon(s.category)} me-1"></i> ${s.category}
                         </div>
@@ -532,9 +865,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/schemes/all');
             const data = await res.json();
-            recommendationState.schemes = data.schemes || [];
-            recommendationState.mode = 'default';
-            renderSchemes();
+            recommendationState.allSchemes = data.schemes || [];
+            
+            // If we are in default mode (no chat messages), populate schemes as well
+            if (recommendationState.mode === 'default') {
+                recommendationState.schemes = [...recommendationState.allSchemes];
+                renderSchemes();
+            }
         } catch (e) {
             console.error("Error fetching all schemes:", e);
         }
@@ -561,6 +898,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderSchemes();
             
+            // UX: Expand Recommendations section if results are interesting/filtered
+            if (recommendationState.mode !== 'default' && recommendationState.schemes.length > 0) {
+                const recCollapse = document.getElementById('collapseRecs');
+                if (recCollapse && !recCollapse.classList.contains('show')) {
+                    const bsCollapse = new bootstrap.Collapse(recCollapse, { toggle: false });
+                    bsCollapse.show();
+                }
+            }
+            
         } catch (e) {
             console.error("Error fetching recommendations:", e);
         }
@@ -572,11 +918,19 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             
-            // Backup current schemes globally if we want to filter them
-            // We just mutate a copy of state to render
-            const originalSchemes = recommendationState.schemes;
+            // UX: Auto-expand Recommendations section when searching
+            if (term.length > 0) {
+                const recCollapse = document.getElementById('collapseRecs');
+                if (recCollapse && !recCollapse.classList.contains('show')) {
+                    const bsCollapse = new bootstrap.Collapse(recCollapse, { toggle: false });
+                    bsCollapse.show();
+                }
+            }
 
-            const filtered = originalSchemes.filter(s => 
+            // If searching, search EVERYTHING. If cleared, go back to RECOMMENDATIONS.
+            const sourceSchemes = term.length > 0 ? recommendationState.allSchemes : recommendationState.schemes;
+
+            const filtered = sourceSchemes.filter(s => 
                 s.name.toLowerCase().includes(term) || 
                 s.category.toLowerCase().includes(term) ||
                 (s.target_group && s.target_group.toLowerCase().includes(term))
@@ -598,16 +952,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const cardsHTML = filtered.map(s => {
                 const isEligible = s.eligibility_status === 'Eligible';
+                const isPartial = s.eligibility_status === 'Check Criteria';
+                
+                let badgeBg = isEligible ? 'rgba(0,230,118,0.1)' : (isPartial ? 'rgba(255,193,7,0.1)' : 'rgba(108,117,125,0.1)');
+                let badgeColor = isEligible ? 'var(--accent-green, #00E676)' : (isPartial ? '#ffc107' : '#6c757d');
+                let badgeText = s.eligibility_status ? s.eligibility_status.toUpperCase() : (isEligible ? 'ELIGIBLE' : 'VIEW');
+                
+                const collapseId = `search-explain-${s.id || s.name.replace(/[^a-zA-Z0-9]/g, '')}`;
+                
+                let rulesHtml = '';
+                if (s.matched_rules && s.matched_rules.length > 0) {
+                    rulesHtml = s.matched_rules.map(r => `
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="fas fa-check-circle text-success me-2" style="font-size: 0.8rem;"></i>
+                            <span class="theme-text-secondary" style="font-size: 0.75rem;">${r}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    rulesHtml = '<div class="text-secondary small fst-italic">Review official criteria for details.</div>';
+                }
+
                 return `
-                    <div class="rec-card-modern" onclick="fetchSchemeDetails('${s.name}')">
+                    <div class="rec-card-modern" onclick="fetchSchemeDetails('${s.name}')" style="height: auto; min-height: 220px; padding-bottom: 1rem;">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="theme-text-primary fw-bold" style="font-size: 0.95rem;">${s.name}</div>
-                            <span class="badgex" style="font-size: 0.6rem; background: rgba(0,230,118,0.1); color: var(--accent-green); padding: 2px 6px; border-radius: 4px;">ELIGIBLE</span>
+                            <span class="badgex" style="font-size: 0.6rem; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 6px; border-radius: 4px; white-space: nowrap; margin-left: 8px;">${badgeText}</span>
                         </div>
                         <div class="text-secondary small mb-3" style="font-size: 0.8rem; line-height: 1.4;">
                             ${s.description ? s.description.substring(0, 60) + '...' : 'No description.'}
                         </div>
-                        <div class="d-flex justify-content-between align-items-center">
+                        
+                        <div class="mt-auto mb-3">
+                            <a class="text-decoration-none small" style="cursor: pointer; font-size: 0.75rem; font-weight: 600; color: var(--accent-primary);" data-bs-toggle="collapse" data-bs-target="#${collapseId}" onclick="event.stopPropagation()">
+                                Why You're Eligible <i class="fas fa-chevron-down ms-1" style="font-size: 0.7em;"></i>
+                            </a>
+                            <div class="collapse mt-2 pt-2 border-top theme-border-subtle" id="${collapseId}" onclick="event.stopPropagation()">
+                                ${rulesHtml}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
                             <div class="theme-text-secondary" style="font-size: 0.75rem;">
                                 <i class="fas ${getCategoryIcon(s.category)} me-1"></i> ${s.category}
                             </div>
@@ -760,6 +1144,14 @@ document.addEventListener('DOMContentLoaded', () => {
         currentProfileData = profile;
     };
 
+    const toggleLogoProcessing = (isProcessing) => {
+        const logo = document.getElementById('main-ai-logo');
+        if (logo) {
+            if (isProcessing) logo.classList.add('processing');
+            else logo.classList.remove('processing');
+        }
+    };
+
     const renderUserMessage = (content) => {
         // Hide Hero Section on first message
         const hero = document.getElementById('hero-section');
@@ -838,6 +1230,13 @@ document.addEventListener('DOMContentLoaded', () => {
         speakBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
         speakBtn.title = "Read aloud";
         
+        // Add click event for manual TTS trigger
+        speakBtn.onclick = () => window.toggleSpeech(speakBtn, ttsText, currentLanguage);
+        
+        // Append button to the message bubble
+        bubble.appendChild(speakBtn);
+
+        
         // Auto-TTS Feature Check
         if (userPreferences.autoTts) {
             window.toggleSpeech(speakBtn, ttsText, currentLanguage);
@@ -867,6 +1266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         chatBox.appendChild(typingDiv);
         scrollToBottom();
+        toggleLogoProcessing(true);
 
         try {
             const response = await fetch('/chat', {
@@ -879,6 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Remove typing indicator
             document.getElementById('typing').remove();
+            toggleLogoProcessing(false);
 
             if (data.error) {
                 renderAssistantMessage(`Error: ${data.error}`);
@@ -887,8 +1288,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update Session
                 if (data.session_id) {
+                    const isNew = (sessionId !== data.session_id);
                     sessionId = data.session_id;
                     localStorage.setItem('chat_session_id', sessionId);
+                    
+                    // If it was the first message in a new session, refresh history titles
+                    if (isNew || chatBox.querySelectorAll('.message-bubble').length <= 2) {
+                        loadSessions();
+                    }
                 }
                 
                 // Update Profile Logic Removed
@@ -1042,7 +1449,6 @@ document.addEventListener('DOMContentLoaded', () => {
         micBtn.style.display = 'none';
         console.warn("Speech recognition is not supported in this browser.");
     }
-});
 
 // --- User Profile Functions ---
 
@@ -1103,7 +1509,6 @@ async function saveProfileSettings() {
 }
 
 // --- Password Update Handling ---
-document.addEventListener('DOMContentLoaded', () => {
     const changePasswordForm = document.getElementById('changePasswordForm');
     if (changePasswordForm) {
         changePasswordForm.addEventListener('submit', async (e) => {
@@ -1170,6 +1575,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (eligibilityForm) {
         eligibilityForm.addEventListener('submit', handleEligibilitySubmit);
     }
+
+    // Initial Load
+    fetchRecommendations();
+    loadSessions();
 });
 
 // --- Eligibility Checker Functions ---
