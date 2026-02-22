@@ -479,6 +479,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+        
+        // Also update the settings select dropdown if it exists
+        const settingsSelect = document.getElementById('setting-language-select');
+        if (settingsSelect) settingsSelect.value = lang;
+    };
+
+    const translateStaticUI = async (lang) => {
+        if (!lang || lang === 'English') {
+            // Revert to English (handled by server in TranslationManager.translate if English check exists)
+            // But for static labels, we might need a way to revert. 
+            // For now, let's assume the data-i18n elements store their English text.
+        }
+
+        const translatable = document.querySelectorAll('[data-i18n]');
+        const tasks = Array.from(translatable).map(async (el) => {
+            // Store original text if not already stored
+            if (!el.getAttribute('data-original-text')) {
+                el.setAttribute('data-original-text', el.innerText.trim());
+            }
+            
+            const originalText = el.getAttribute('data-original-text');
+            const translated = await TranslationManager.translate(originalText, lang);
+            if (translated) {
+                el.innerText = translated;
+            }
+        });
+        
+        await Promise.all(tasks);
+    };
+
+    window.changeLanguageFromSettings = (lang) => {
+        window.changeLanguage(lang);
     };
 
     window.changeLanguage = async (lang) => {
@@ -546,6 +578,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             await Promise.all(tasks);
+            
+            // NEW: Translate Static UI Elements
+            await translateStaticUI(lang);
+            
             console.log(`[Language Switch] Completed switch to: ${lang}`);
             
             updateLanguageUI(lang); // Update indicators
