@@ -6,3 +6,4 @@ node_modules/
 instance/
 *.sqlite3
 backup.bat
+OAuthgoogle.json
