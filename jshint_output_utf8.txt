@@ -1,0 +1,64 @@
+﻿frontend\static\js\app.js: line 298, col 15, 'cardWidth' is defined but never used.
+frontend\static\js\app.js: line 307, col 15, 'baseSpeed' is defined but never used.
+frontend\static\js\app.js: line 790, col 84, ['Name'] is better written in dot notation.
+frontend\static\js\app.js: line 791, col 84, ['Name'] is better written in dot notation.
+frontend\static\js\app.js: line 770, col 15, 'backBtn' is defined but never used.
+frontend\static\js\app.js: line 1491, col 16, 'saveProfileSettings' is defined but never used.
+frontend\static\js\app.js: line 26, col 24, 'console' is not defined.
+frontend\static\js\app.js: line 130, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 174, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 192, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 228, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 284, col 17, 'console' is not defined.
+frontend\static\js\app.js: line 518, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 523, col 9, 'console' is not defined.
+frontend\static\js\app.js: line 538, col 29, 'console' is not defined.
+frontend\static\js\app.js: line 585, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 593, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 639, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 709, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 812, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 912, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 947, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 1171, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 1353, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 1405, col 27, 'console' is not defined.
+frontend\static\js\app.js: line 1443, col 17, 'console' is not defined.
+frontend\static\js\app.js: line 1464, col 13, 'console' is not defined.
+frontend\static\js\app.js: line 1486, col 9, 'console' is not defined.
+frontend\static\js\app.js: line 1540, col 9, 'console' is not defined.
+frontend\static\js\app.js: line 1663, col 9, 'console' is not defined.
+frontend\static\js\app.js: line 72, col 27, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 167, col 44, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 221, col 44, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 688, col 27, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 941, col 44, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 961, col 44, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 1067, col 23, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 1364, col 27, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 1396, col 23, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 1589, col 39, 'bootstrap' is not defined.
+frontend\static\js\app.js: line 162, col 17, 'loadSessions' is not defined.
+frontend\static\js\app.js: line 188, col 21, 'loadSessions' is not defined.
+frontend\static\js\app.js: line 216, col 17, 'loadSessions' is not defined.
+frontend\static\js\app.js: line 1333, col 25, 'loadSessions' is not defined.
+frontend\static\js\app.js: line 1617, col 5, 'loadSessions' is not defined.
+frontend\static\js\app.js: line 180, col 14, 'confirm' is not defined.
+frontend\static\js\app.js: line 186, col 21, 'startNewChat' is not defined.
+frontend\static\js\app.js: line 455, col 9, 'changeLanguage' is not defined.
+frontend\static\js\app.js: line 559, col 58, 'marked' is not defined.
+frontend\static\js\app.js: line 1238, col 38, 'marked' is not defined.
+frontend\static\js\app.js: line 1259, col 42, 'marked' is not defined.
+frontend\static\js\app.js: line 594, col 13, 'alert' is not defined.
+frontend\static\js\app.js: line 655, col 17, 'alert' is not defined.
+frontend\static\js\app.js: line 1129, col 13, 'alert' is not defined.
+frontend\static\js\app.js: line 1466, col 18, 'alert' is not defined.
+frontend\static\js\app.js: line 1535, col 13, 'alert' is not defined.
+frontend\static\js\app.js: line 1541, col 9, 'alert' is not defined.
+frontend\static\js\app.js: line 1664, col 9, 'alert' is not defined.
+frontend\static\js\app.js: line 1088, col 13, 'speechSynthesis' is not defined.
+frontend\static\js\app.js: line 1089, col 13, 'speechSynthesis' is not defined.
+frontend\static\js\app.js: line 1156, col 32, 'SpeechSynthesisUtterance' is not defined.
+frontend\static\js\app.js: line 1665, col 9, 'resetEligibilityForm' is not defined.
+
+62 errors
