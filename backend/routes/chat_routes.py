@@ -1,9 +1,8 @@
 from flask import Blueprint, request, jsonify, session
 from models import db, UserSession, ChatMessage, UserProfile
-from services.ai_service import extract_profile, generate_response, translate_text
+from services.ai_service import extract_profile, generate_response, translate_text, call_llm
 from services.scheme_service import find_eligible_schemes
-import os
-import re
+from sqlalchemy.orm.attributes import flag_modified
 import uuid
 
 chat_bp = Blueprint('chat', __name__)
@@ -14,7 +13,7 @@ def chat():
     if 'user_id' not in session:
         return jsonify({"error": "Unauthorized access. Please login."}), 401
 
-    data = request.json
+    data = request.json or {}
     user_message = data.get('message')
     session_id = data.get('session_id')
     user_language = data.get('language', 'English')
@@ -22,142 +21,127 @@ def chat():
     if not user_message:
         return jsonify({"error": "Message is required"}), 400
 
-    # Get or Create Session
-    if session_id:
-        db_user_session = UserSession.query.get(session_id)
-    else:
-        # Create new session and associate with user if logged in
-        new_sid = uuid.uuid4()
-        db_user_session = UserSession(session_id=new_sid)
+    try:
+        # 1. Get or Create Session cleanly
+        db_user_session = None
+        if session_id:
+            db_user_session = db.session.get(UserSession, session_id)
+        
+        if not db_user_session:
+            new_sid = str(uuid.uuid4())
+            db_user_session = UserSession(session_id=new_sid)
+            if 'user_id' in session:
+                db_user_session.user_id = session['user_id']
+            db.session.add(db_user_session)
+            db.session.commit()
+
+        # 2. Auto-generate title for new sessions
+        if not db_user_session.title:
+            words = user_message.split()
+            title_text = " ".join(words[:6])
+            if len(words) > 6:
+                title_text += "..."
+            db_user_session.title = title_text
+            db.session.commit()
+
+        # 3. Update session profile with detected language
+        current_profile = dict(db_user_session.profile_data or {})
+        if user_language:
+            current_profile['detected_language'] = user_language
+            session['language'] = user_language
+
+        # 4. Save User Message
+        user_msg_entry = ChatMessage(session_id=db_user_session.session_id, role='user', content=user_message)
+        db.session.add(user_msg_entry)
+        db.session.commit()
+
+        # 5. Retrieve Chat History
+        history = ChatMessage.query.filter_by(session_id=db_user_session.session_id).order_by(ChatMessage.timestamp).all()
+        chat_history = [{"role": msg.role, "content": msg.content} for msg in history]
+
+        # 6. Extract Profile from Message History
+        extracted_profile = extract_profile(chat_history)
+        
+        # 7. Merge extracted profile with existing profile
+        for key, value in extracted_profile.items():
+            if value:
+                if isinstance(value, list) and len(value) > 0:
+                    value = value[0]
+                
+                if isinstance(value, str):
+                    current_profile[key] = value
+                elif isinstance(value, (int, float)):
+                    current_profile[key] = value
+
+        # 8. Save updated profile with explicit mutation flag
+        db_user_session.profile_data = current_profile
+        flag_modified(db_user_session, 'profile_data')
+        db.session.commit()
+
+        # 9. Sync with UserProfile table if logged in
         if 'user_id' in session:
-            db_user_session.user_id = session['user_id']
-        db.session.add(db_user_session)
-        db.session.commit()
-    
-    # Check if session exists (if invalid ID passed)
-    if not db_user_session:
-        new_sid = uuid.uuid4()
-        db_user_session = UserSession(session_id=new_sid)
-        if 'user_id' in session:
-            db_user_session.user_id = session['user_id']
-        db.session.add(db_user_session)
-        db.session.commit()
-
-    # Auto-generate title for new sessions (if no title exists yet)
-    if not db_user_session.title:
-        # Take first 5-7 words from user message as a title
-        words = user_message.split()
-        title_text = " ".join(words[:6])
-        if len(words) > 6:
-            title_text += "..."
-        db_user_session.title = title_text
-        db.session.commit()
-
-    # Update session profile with detected language if passed
-    current_profile = db_user_session.profile_data or {}
-    if user_language:
-        current_profile['detected_language'] = user_language
-        session['language'] = user_language # Sync with flask session
-
-    # Save User Message
-    user_msg_entry = ChatMessage(session_id=db_user_session.session_id, role='user', content=user_message)
-    db.session.add(user_msg_entry)
-    db.session.commit()
-
-    # Retrieve Chat History
-    history = ChatMessage.query.filter_by(session_id=db_user_session.session_id).order_by(ChatMessage.timestamp).all()
-    chat_history = [{"role": msg.role, "content": msg.content} for msg in history]
-
-    # AI Process: Extract Profile from Message History
-    extracted_profile = extract_profile(chat_history)
-    
-    # Merge with existing profile (Update logic)
-    # Only update fields that are NOT null in extracted data
-    # Merge with existing profile (Update logic)
-    # Only update fields that are NOT null in extracted data
-    for key, value in extracted_profile.items():
-        if value:
-            # SANITIZATION: Ensure State/Occupation/etc are strings, not lists
-            if isinstance(value, list) and len(value) > 0:
-                value = value[0] # Take first item if list
+            user_id = session['user_id']
+            user_profile = UserProfile.query.filter_by(user_id=user_id).first()
             
-            if isinstance(value, str):
-                current_profile[key] = value
-            elif isinstance(value, (int, float)):
-                current_profile[key] = value # Allow numbers
-            # Ignore other types to prevent DB errors
-
-    # Save updated profile to Session
-    db_user_session.profile_data = current_profile
-    db.session.commit()
-
-    # Save to UserProfile Table if User is Logged In
-    if 'user_id' in session:
-        user_id = session['user_id']
-        user_profile = UserProfile.query.filter_by(user_id=user_id).first()
-        
-        if not user_profile:
-            user_profile = UserProfile(user_id=user_id)
-            db.session.add(user_profile)
-        
-        # Update fields if present in extracted data
-        if current_profile.get('occupation'): user_profile.occupation = current_profile['occupation']
-        if current_profile.get('income_range'): user_profile.income_range = current_profile['income_range']
-        if current_profile.get('education'): user_profile.education = current_profile['education']
-        if current_profile.get('age'): user_profile.age_group = str(current_profile['age'])
-        if current_profile.get('age'): user_profile.age_group = str(current_profile['age'])
-        
-        # Safe State Extraction
-        if current_profile.get('state'): 
-            state_val = current_profile['state']
-            # If AI returns a list (e.g., ['Gujarat', 'Maharashtra']), join/pick one
-            if isinstance(state_val, list):
-                state_val = state_val[0] if state_val else None
+            if not user_profile:
+                user_profile = UserProfile(user_id=user_id)
+                db.session.add(user_profile)
             
-            # Ensure it fits in DB (VARCHAR 100)
-            if state_val and isinstance(state_val, str) and len(state_val) <= 100:
-                user_profile.location = state_val
+            if current_profile.get('occupation'): 
+                user_profile.occupation = current_profile['occupation']
+            if current_profile.get('income_range'): 
+                user_profile.income_range = current_profile['income_range']
+            if current_profile.get('education'): 
+                user_profile.education = current_profile['education']
+            if current_profile.get('age'): 
+                user_profile.age_group = str(current_profile['age'])
+            
+            if current_profile.get('state'): 
+                state_val = current_profile['state']
+                if isinstance(state_val, list):
+                    state_val = state_val[0] if state_val else None
+                
+                if state_val and isinstance(state_val, str) and len(state_val) <= 100:
+                    user_profile.location = state_val
+            
+            db.session.commit()
+
+        required_fields = ['occupation', 'income_range', 'state', 'age']
+        missing_fields = [field for field in required_fields if not current_profile.get(field)]
+        final_language = 'English'
         
+        intent_category = extracted_profile.get('intent_category')
+        query_type = extracted_profile.get('query_type', 'general')
+
+        eligible_schemes = []
+        if query_type in ['scheme_inquiry', 'eligibility_check']:
+            eligible_schemes = find_eligible_schemes(current_profile, intent_category=intent_category)
+
+        response_text = generate_response(
+            user_message, 
+            eligible_schemes, 
+            current_profile, 
+            missing_fields=missing_fields,
+            language=final_language,
+            intent=query_type
+        )
+
+        bot_msg_entry = ChatMessage(session_id=db_user_session.session_id, role='assistant', content=response_text)
+        db.session.add(bot_msg_entry)
         db.session.commit()
 
-    # Identify Missing Critical Fields for AI
-    required_fields = ['occupation', 'income_range', 'state', 'age']
-    missing_fields = [field for field in required_fields if not current_profile.get(field)]
+        return jsonify({
+            "response": response_text,
+            "session_id": db_user_session.session_id,
+            "profile": current_profile,
+            "schemes_found": len(eligible_schemes)
+        })
 
-    # Determine Language for Response
-    # ALWAYS generate in English for consistency. Frontend handles translation.
-    final_language = 'English'
-    
-    # Extract Intent Category & Query Type
-    intent_category = extracted_profile.get('intent_category')
-    query_type = extracted_profile.get('query_type', 'general')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in /chat: {e}")
+        return jsonify({"error": "An internal error occurred while processing your message."}), 500
 
-    # Find Eligible Schemes (Only for Scheme/Eligibility Queries)
-    eligible_schemes = []
-    if query_type in ['scheme_inquiry', 'eligibility_check']:
-        eligible_schemes = find_eligible_schemes(current_profile, intent_category=intent_category)
-
-    # Generate Response
-    response_text = generate_response(
-        user_message, 
-        eligible_schemes, 
-        current_profile, 
-        missing_fields=missing_fields,
-        language=final_language,
-        intent=query_type
-    )
-
-    # Save Assistant Message
-    bot_msg_entry = ChatMessage(session_id=db_user_session.session_id, role='assistant', content=response_text)
-    db.session.add(bot_msg_entry)
-    db.session.commit()
-
-    return jsonify({
-        "response": response_text,
-        "session_id": db_user_session.session_id,
-        "profile": current_profile,
-        "schemes_found": len(eligible_schemes)
-    })
 
 @chat_bp.route('/api/clear_chat', methods=['POST'])
 def clear_chat():
@@ -165,21 +149,21 @@ def clear_chat():
         session.pop('conversation_history')
     return jsonify({"status": "success", "message": "Chat history cleared"})
 
+
 @chat_bp.route('/api/update_profile', methods=['POST'])
 def update_profile():
     return jsonify({"error": "Profile editing is disabled"}), 403
 
+
 @chat_bp.route('/scheme-details', methods=['POST'])
 def scheme_details():
     try:
-        data = request.json
+        data = request.json or {}
         scheme_name = data.get('scheme_name')
-        session_id = data.get('session_id')
         
         if not scheme_name:
             return jsonify({"error": "Scheme name is required"}), 400
 
-        # Construct a simulated user message to get the AI explanation
         user_message = f"Tell me detailed information about the scheme: {scheme_name}. Explain its benefits, eligibility, and how to apply in simple terms."
         
         from models import Scheme
@@ -197,8 +181,6 @@ def scheme_details():
             Official Link: {scheme.official_link}
             """
             
-        from services.ai_service import call_llm
-        
         system_prompt = f"""
         You are a helpful government scheme assistant.
         The user wants to know about: {scheme_name}
@@ -219,33 +201,27 @@ def scheme_details():
         if not response_text:
             response_text = "I'm sorry, I couldn't generate details for this scheme right now."
 
-        # Translation handled by Frontend now
-        # language = data.get('language', 'English')
-        # if language and language != 'English':
-        #      response_text = translate_text(response_text, language)
-
         return jsonify({"response": response_text})
 
     except Exception as e:
         print(f"Error in scheme-details: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
 
+
 @chat_bp.route('/api/translate_history', methods=['POST'])
 def translate_history():
     try:
-        data = request.json
+        data = request.json or {}
         session_id = data.get('session_id')
         target_language = data.get('language')
         
         if not session_id or not target_language:
-             return jsonify({"error": "Missing params"}), 400
+            return jsonify({"error": "Missing params"}), 400
              
-        # Fetch History
         history = ChatMessage.query.filter_by(session_id=session_id).order_by(ChatMessage.timestamp).all()
         
         translated_history = []
         for msg in history:
-            # We translate on the fly, preserving original DB content
             translated_content = translate_text(msg.content, target_language)
             translated_history.append({
                 "role": msg.role, 
@@ -258,15 +234,16 @@ def translate_history():
         print(f"Error translating history: {e}")
         return jsonify({"error": "Translation failed"}), 500
 
+
 @chat_bp.route('/api/translate', methods=['POST'])
 def translate_text_endpoint():
     try:
-        data = request.json
+        data = request.json or {}
         text = data.get('text')
         target_language = data.get('language')
         
         if not text or not target_language:
-             return jsonify({"error": "Missing params"}), 400
+            return jsonify({"error": "Missing params"}), 400
              
         translated_text = translate_text(text, target_language)
         return jsonify({"translated_text": translated_text})
@@ -275,26 +252,26 @@ def translate_text_endpoint():
         print(f"Error translating text: {e}")
         return jsonify({"error": "Translation failed"}), 500
 
+
 @chat_bp.route('/change-language', methods=['POST'])
 def change_language():
     try:
-        data = request.json
+        data = request.json or {}
         language = data.get('language')
         
         if not language:
             return jsonify({"error": "Language is required"}), 400
             
-        # Update Session
         session['language'] = language
         
-        # Also update UserSession if exists
         session_id = data.get('session_id')
         if session_id:
-            db_user_session = UserSession.query.get(session_id)
+            db_user_session = db.session.get(UserSession, session_id)
             if db_user_session:
-                current_profile = db_user_session.profile_data or {}
+                current_profile = dict(db_user_session.profile_data or {})
                 current_profile['detected_language'] = language
                 db_user_session.profile_data = current_profile
+                flag_modified(db_user_session, 'profile_data')
                 db.session.commit()
                 
         return jsonify({"message": "Language updated", "language": language})
@@ -302,6 +279,7 @@ def change_language():
     except Exception as e:
         print(f"Error changing language: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
+
 
 @chat_bp.route('/api/sessions', methods=['GET'])
 def get_sessions():
@@ -316,10 +294,11 @@ def get_sessions():
         session_list.append({
             "id": str(s.session_id),
             "title": s.title or "Untitled Conversation",
-            "created_at": s.created_at.strftime("%Y-%m-%d %H:%M")
+            "created_at": s.created_at.strftime("%Y-%m-%d %H:%M") if s.created_at else ""
         })
     
     return jsonify({"sessions": session_list})
+
 
 @chat_bp.route('/api/sessions/<session_id>', methods=['GET'])
 def get_session_details(session_id):
@@ -327,12 +306,16 @@ def get_session_details(session_id):
         return jsonify({"error": "Unauthorized"}), 401
     
     try:
-        user_sess = UserSession.query.get(session_id)
+        user_sess = db.session.get(UserSession, session_id)
         if not user_sess or user_sess.user_id != session['user_id']:
             return jsonify({"error": "Session not found"}), 404
             
         messages = ChatMessage.query.filter_by(session_id=session_id).order_by(ChatMessage.timestamp).all()
-        msg_list = [{"role": m.role, "content": m.content, "timestamp": m.timestamp} for m in messages]
+        msg_list = [{
+            "role": m.role, 
+            "content": m.content, 
+            "timestamp": m.timestamp.isoformat() if m.timestamp else None
+        } for m in messages]
         
         return jsonify({
             "session_id": str(user_sess.session_id),
@@ -343,17 +326,17 @@ def get_session_details(session_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @chat_bp.route('/api/sessions/<session_id>', methods=['DELETE'])
 def delete_session(session_id):
     if 'user_id' not in session:
         return jsonify({"error": "Unauthorized"}), 401
     
     try:
-        user_sess = UserSession.query.get(session_id)
+        user_sess = db.session.get(UserSession, session_id)
         if not user_sess or user_sess.user_id != session['user_id']:
             return jsonify({"error": "Session not found"}), 404
             
-        # Delete related messages first (optional if cascade is set, but explicit is safer)
         ChatMessage.query.filter_by(session_id=session_id).delete()
         db.session.delete(user_sess)
         db.session.commit()
@@ -363,12 +346,13 @@ def delete_session(session_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+
 @chat_bp.route('/api/sessions/new', methods=['POST'])
 def start_new_session_api():
     if 'user_id' not in session:
         return jsonify({"error": "Unauthorized"}), 401
         
-    new_sid = uuid.uuid4()
+    new_sid = str(uuid.uuid4())
     new_sess = UserSession(session_id=new_sid, user_id=session['user_id'])
     db.session.add(new_sess)
     db.session.commit()

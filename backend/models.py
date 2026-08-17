@@ -1,5 +1,4 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY, UUID
 import uuid
 from datetime import datetime
 
@@ -20,6 +19,9 @@ class User(db.Model):
     # Relationship to profile
     profile = db.relationship('UserProfile', backref='user', uselist=False)
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
 class UserProfile(db.Model):
     __tablename__ = 'user_profiles'
 
@@ -32,6 +34,9 @@ class UserProfile(db.Model):
     location = db.Column(db.String(100))
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
 class Scheme(db.Model):
     __tablename__ = 'schemes'
 
@@ -39,13 +44,16 @@ class Scheme(db.Model):
     scheme_name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
     benefits = db.Column(db.Text, nullable=False)  # Description of benefits
-    eligibility = db.Column(JSONB, nullable=False)  # {"income_limit": "2 lakh", ...}
-    documents = db.Column(JSONB, nullable=False)  # ["Aadhaar", "Pan Card"]
+    eligibility = db.Column(db.JSON, nullable=False)  # {"income_limit": "2 lakh", ...}
+    documents = db.Column(db.JSON, nullable=False)  # ["Aadhaar", "Pan Card"]
     category = db.Column(db.String(100), nullable=False)
     target_group = db.Column(db.String(100))
     state = db.Column(db.String(100), default="All India")
     official_link = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def to_dict(self):
         return {
@@ -64,20 +72,26 @@ class Scheme(db.Model):
 class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
-    session_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     title = db.Column(db.String(255), nullable=True)
-    profile_data = db.Column(JSONB, default={})
+    profile_data = db.Column(db.JSON, default={})
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationship to messages
     messages = db.relationship('ChatMessage', backref='session', lazy=True)
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
 class ChatMessage(db.Model):
     __tablename__ = 'chat_messages'
 
     id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user_sessions.session_id'), nullable=False)
+    session_id = db.Column(db.String(36), db.ForeignKey('user_sessions.session_id'), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # 'user' or 'assistant'
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)

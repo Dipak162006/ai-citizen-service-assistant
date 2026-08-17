@@ -38,11 +38,11 @@ def create_app():
             return redirect('/dashboard')
         return send_from_directory(frontend_folder, 'landing.html')
 
-    @app.route('/login')
+    @app.route('/login', methods=['GET'])
     def login_page():
         return send_from_directory(frontend_folder, 'login.html')
 
-    @app.route('/register')
+    @app.route('/register', methods=['GET'])
     def register_page():
         return send_from_directory(frontend_folder, 'register.html')
 

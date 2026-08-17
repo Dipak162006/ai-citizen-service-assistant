@@ -1,6 +1,18 @@
+import os
+import sys
+
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+for ca_var in ('CURL_CA_BUNDLE', 'REQUESTS_CA_BUNDLE', 'SSL_CERT_FILE'):
+    if ca_var in os.environ and not os.path.exists(os.environ[ca_var]):
+        del os.environ[ca_var]
+
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-import os
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 from app import create_app
@@ -12,9 +24,9 @@ load_dotenv()
 def ensure_database():
     """Create database if it doesn't exist using safe raw connection."""
     db_url = os.getenv('DATABASE_URL')
-    if not db_url:
-        print("❌ DATABASE_URL missing in .env")
-        return False
+    if not db_url or db_url.startswith('sqlite'):
+        print("✅ Using local SQLite database.")
+        return True
 
     try:
         parsed = urlparse(db_url)
@@ -26,7 +38,8 @@ def ensure_database():
             user=parsed.username,
             password=parsed.password,
             host=parsed.hostname,
-            port=parsed.port
+            port=parsed.port or 5432,
+            connect_timeout=2
         )
         con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = con.cursor()
@@ -43,8 +56,8 @@ def ensure_database():
         con.close()
         return True
     except Exception as e:
-        print(f"❌ Database check failed: {e}")
-        return False
+        print(f"⚠️ PostgreSQL check skipped ({e}). Using SQLite fallback database.")
+        return True
 
 def init_and_seed():
     """Initialize tables and seed data using Flask-SQLAlchemy."""
